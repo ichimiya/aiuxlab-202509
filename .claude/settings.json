@@ -1,10 +1,6 @@
 {
   "permissions": {
-    "allow": [
-      "mcp__serena__*",
-      "Bash(git:*)",
-      "Bash(gh:*)"
-    ],
+    "allow": ["mcp__serena", "Bash(git:*)", "Bash(gh:*)"],
     "deny": [],
     "ask": []
   }
