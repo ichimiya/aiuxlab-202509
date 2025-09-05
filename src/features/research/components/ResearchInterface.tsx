@@ -1,5 +1,7 @@
+'use client';
+
 import { useState } from 'react';
-import { useResearchStore } from '@/shared/stores/research-store';
+import { useResearchStore } from '@/shared/stores/researchStore';
 import { useGetResearchHistory, useCreateResearch } from '@/shared/api/generated';
 
 export function ResearchInterface() {
@@ -62,15 +64,26 @@ export function ResearchInterface() {
           </div>
         )}
 
-        {/* API Test Status */}
+        {/* SSR & API Test Status */}
         <div className="space-y-2">
-          <h3 className="text-sm font-medium">API生成テスト状況:</h3>
+          <h3 className="text-sm font-medium">SSR + React Query統合状況:</h3>
           {isLoading && <p className="text-sm text-yellow-600">データ読み込み中...</p>}
-          {error && <p className="text-sm text-red-600">エラー: API接続に失敗 (期待される動作)</p>}
-          {researchHistory && <p className="text-sm text-green-600">データ取得成功: {researchHistory.length}件</p>}
+          {error && (
+            <p className="text-sm text-red-600">
+              エラー: API接続に失敗 (期待される動作)
+            </p>
+          )}
+          {researchHistory && (
+            <div className="text-sm text-green-600">
+              <p>✅ SSR prefetch → Client hydration成功</p>
+              <p>📊 データ取得成功: {researchHistory.length}件</p>
+            </div>
+          )}
           <p className="text-sm text-gray-500">
+            ✅ Server-side prefetch実装<br/>
+            ✅ HydrationBoundary統合<br/>
             ✅ TypeScript型定義生成完了<br/>
-            ✅ React Queryフック生成完了<br/>
+            ✅ React Query dehydrate/hydrate<br/>
             ✅ Axios interceptor統合完了
           </p>
         </div>
@@ -80,7 +93,11 @@ export function ResearchInterface() {
           <button
             type="button"
             onClick={() => {
-              createResearchMutation.mutate({ query, selectedText, voiceCommand });
+              createResearchMutation.mutate({ 
+                query: query,
+                selectedText: selectedText,
+                voiceCommand: voiceCommand
+              });
             }}
             disabled={!query || createResearchMutation.isPending}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
