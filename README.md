@@ -17,16 +17,46 @@ AI時代の新しいリサーチ体験を探索する実験的POC
 - **技術仕様**: @docs/tech-stack.md
 - **開発ガイド**: @docs/development.md
 - **アーキテクチャ**: @docs/architecture.md
+- **SSR統合**: @docs/ssr-hydration.md
+- **CI/CD**: @docs/github-actions.md
 - **Claude Code設定**: @CLAUDE.md
 
 ## クイックスタート
 
 ```bash
+# 依存関係インストール
 pnpm install
+
+# API型生成
+pnpm generate:api
+
+# 開発サーバー起動
 pnpm dev
 ```
 
+### 品質チェック
+
+```bash
+# 全体品質チェック
+pnpm check
+
+# 自動修正
+pnpm fix
+
+# ビルド確認
+pnpm build
+```
+
 環境構築詳細: @docs/tech-stack.md
+
+## CI/CD Status
+
+[![CI](https://github.com/your-repo/ai-research-poc/actions/workflows/ci.yml/badge.svg)](https://github.com/your-repo/ai-research-poc/actions/workflows/ci.yml)
+
+- 🔍 **品質チェック**: ESLint, Prettier, TypeScript
+- 🏗️ **ビルド検証**: Next.js本番ビルド
+- 🧪 **テスト実行**: Vitest単体テスト
+- 📋 **PR検証**: セマンティックコミット確認
 
 ## 現在のステータス
 
