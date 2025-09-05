@@ -3,6 +3,7 @@
  */
 
 export { PerplexityClient } from "./client";
+export { ResearchService } from "./researchService";
 export type {
   PerplexityConfig,
   PerplexityRequest,
