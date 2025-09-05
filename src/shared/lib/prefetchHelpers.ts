@@ -5,7 +5,7 @@ import {
   getGetResearchHistoryQueryKey,
   getResearch,
   getGetResearchQueryKey,
-} from "../api/generated";
+} from "../api/generated/api";
 
 /**
  * Prefetch research history on server

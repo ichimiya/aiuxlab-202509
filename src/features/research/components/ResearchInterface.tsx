@@ -5,7 +5,7 @@ import { useResearchStore } from "@/shared/stores/researchStore";
 import {
   useGetResearchHistory,
   useCreateResearch,
-} from "@/shared/api/generated";
+} from "@/shared/api/generated/api";
 
 export function ResearchInterface() {
   const [query, setQuery] = useState("");

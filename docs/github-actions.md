@@ -20,7 +20,6 @@
 - ESLint実行
 - Prettier形式チェック
 - TypeScript型チェック
-- OpenAPI型生成確認
 
 #### ビルドチェック (build-check)
 

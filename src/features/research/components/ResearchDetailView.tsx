@@ -1,8 +1,8 @@
 "use client";
 
-import { useGetResearch } from "@/shared/api/generated";
+import { useGetResearch } from "@/shared/api/generated/api";
+import { ResearchResult } from "@/shared/api/generated/models";
 import { ResearchVisualization } from "@/features/visualization/components/ResearchVisualization";
-import { ResearchResult } from "@/shared/api/generated";
 import Link from "next/link";
 
 interface ResearchDetailViewProps {

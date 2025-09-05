@@ -29,9 +29,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate API types
-        run: pnpm generate:api
-
       - name: Lint check
         run: pnpm lint
 
@@ -64,9 +61,6 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Generate API types
-        run: pnpm generate:api
-
       - name: Build check
         run: pnpm build
         env:
@@ -95,9 +89,6 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
-
-      - name: Generate API types
-        run: pnpm generate:api
 
       - name: Run tests
         run: pnpm test --run
