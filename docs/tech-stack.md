@@ -3,7 +3,7 @@
 ## 技術スタック
 
 ### フレームワーク・コア技術
-- **フレームワーク**: Next.js 14 (App Router)
+- **フレームワーク**: Next.js 15 (App Router)
 - **言語**: TypeScript
 - **パッケージ管理**: pnpm
 - **状態管理**: Zustand + React Query
