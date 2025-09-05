@@ -1,13 +1,16 @@
-'use client';
+"use client";
 
-import { useState } from 'react';
-import { useResearchStore } from '@/shared/stores/researchStore';
-import { useGetResearchHistory, useCreateResearch } from '@/shared/api/generated';
+import { useState } from "react";
+import { useResearchStore } from "@/shared/stores/researchStore";
+import {
+  useGetResearchHistory,
+  useCreateResearch,
+} from "@/shared/api/generated";
 
 export function ResearchInterface() {
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState("");
   const { selectedText, voiceCommand, isListening } = useResearchStore();
-  
+
   // API hooks testing
   const { data: researchHistory, isLoading, error } = useGetResearchHistory();
   const createResearchMutation = useCreateResearch();
@@ -42,7 +45,9 @@ export function ResearchInterface() {
         {selectedText && (
           <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg border border-blue-200 dark:border-blue-800">
             <h3 className="text-sm font-medium mb-2">選択されたテキスト:</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{selectedText}</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {selectedText}
+            </p>
           </div>
         )}
 
@@ -50,7 +55,9 @@ export function ResearchInterface() {
         {voiceCommand && (
           <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
             <h3 className="text-sm font-medium mb-2">音声コマンド:</h3>
-            <p className="text-sm text-gray-700 dark:text-gray-300">{voiceCommand}</p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              {voiceCommand}
+            </p>
           </div>
         )}
 
@@ -67,11 +74,13 @@ export function ResearchInterface() {
         {/* SSR & API Test Status */}
         <div className="space-y-2">
           <h3 className="text-sm font-medium">SSR + React Query統合状況:</h3>
-          {isLoading && <p className="text-sm text-yellow-600">データ読み込み中...</p>}
-          {error && (
-            <p className="text-sm text-red-600">
+          {isLoading && (
+            <p className="text-sm text-yellow-600">データ読み込み中...</p>
+          )}
+          {!!error && (
+            <div className="text-sm text-red-600">
               エラー: API接続に失敗 (期待される動作)
-            </p>
+            </div>
           )}
           {researchHistory && (
             <div className="text-sm text-green-600">
@@ -80,11 +89,14 @@ export function ResearchInterface() {
             </div>
           )}
           <p className="text-sm text-gray-500">
-            ✅ Server-side prefetch実装<br/>
-            ✅ HydrationBoundary統合<br/>
-            ✅ TypeScript型定義生成完了<br/>
-            ✅ React Query dehydrate/hydrate<br/>
-            ✅ Axios interceptor統合完了
+            ✅ Server-side prefetch実装
+            <br />
+            ✅ HydrationBoundary統合
+            <br />
+            ✅ TypeScript型定義生成完了
+            <br />
+            ✅ React Query dehydrate/hydrate
+            <br />✅ Axios interceptor統合完了
           </p>
         </div>
 
@@ -93,16 +105,16 @@ export function ResearchInterface() {
           <button
             type="button"
             onClick={() => {
-              createResearchMutation.mutate({ 
-                query: query,
-                selectedText: selectedText,
-                voiceCommand: voiceCommand
+              createResearchMutation.mutate({
+                data: { query, selectedText, voiceCommand },
               });
             }}
             disabled={!query || createResearchMutation.isPending}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            {createResearchMutation.isPending ? 'リサーチ中...' : 'リサーチ開始'}
+            {createResearchMutation.isPending
+              ? "リサーチ中..."
+              : "リサーチ開始"}
           </button>
           <button
             type="button"

@@ -14,14 +14,14 @@ paths:
       summary: リサーチ履歴を取得
       operationId: getResearchHistory
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/Research'
+                  $ref: "#/components/schemas/Research"
 
     post:
       summary: 新しいリサーチを開始
@@ -31,14 +31,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateResearchRequest'
+              $ref: "#/components/schemas/CreateResearchRequest"
       responses:
-        '201':
+        "201":
           description: Created
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Research'
+                $ref: "#/components/schemas/Research"
 
   /research/{id}:
     get:
@@ -51,12 +51,12 @@ paths:
           schema:
             type: string
       responses:
-        '200':
+        "200":
           description: Success
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Research'
+                $ref: "#/components/schemas/Research"
 
 components:
   schemas:
@@ -81,7 +81,7 @@ components:
         results:
           type: array
           items:
-            $ref: '#/components/schemas/ResearchResult'
+            $ref: "#/components/schemas/ResearchResult"
           description: リサーチ結果
         createdAt:
           type: string
@@ -113,11 +113,11 @@ components:
           format: float
           description: 関連度スコア
         voicePattern:
-          $ref: '#/components/schemas/VoicePattern'
+          $ref: "#/components/schemas/VoicePattern"
 
     VoicePattern:
       type: string
-      enum: 
+      enum:
         - deepdive
         - perspective
         - concrete

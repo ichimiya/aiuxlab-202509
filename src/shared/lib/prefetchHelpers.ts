@@ -1,18 +1,18 @@
-import { dehydrate, QueryClient } from '@tanstack/react-query';
-import { getQueryClient } from './serverQueryClient';
-import { 
-  getResearchHistory, 
+import { dehydrate, QueryClient } from "@tanstack/react-query";
+import { getQueryClient } from "./serverQueryClient";
+import {
+  getResearchHistory,
   getGetResearchHistoryQueryKey,
   getResearch,
-  getGetResearchQueryKey 
-} from '../api/generated';
+  getGetResearchQueryKey,
+} from "../api/generated";
 
 /**
  * Prefetch research history on server
  */
 export async function prefetchResearchHistory() {
   const queryClient = getQueryClient();
-  
+
   await queryClient.prefetchQuery({
     queryKey: getGetResearchHistoryQueryKey(),
     queryFn: () => getResearchHistory(),
@@ -27,7 +27,7 @@ export async function prefetchResearchHistory() {
  */
 export async function prefetchResearch(id: string) {
   const queryClient = getQueryClient();
-  
+
   // Prefetch research history
   await queryClient.prefetchQuery({
     queryKey: getGetResearchHistoryQueryKey(),
@@ -49,7 +49,7 @@ export async function prefetchResearch(id: string) {
  * Generic prefetch utility
  */
 export async function prefetchQueries<T>(
-  prefetchFn: (queryClient: QueryClient) => Promise<T>
+  prefetchFn: (queryClient: QueryClient) => Promise<T>,
 ) {
   const queryClient = getQueryClient();
   await prefetchFn(queryClient);
@@ -61,7 +61,7 @@ export async function prefetchQueries<T>(
  */
 export async function prefetchHomePageData() {
   const queryClient = getQueryClient();
-  
+
   // Prefetch research history
   await queryClient.prefetchQuery({
     queryKey: getGetResearchHistoryQueryKey(),
@@ -70,6 +70,6 @@ export async function prefetchHomePageData() {
   });
 
   // You can add more prefetch calls here for other data needed on home page
-  
+
   return dehydrate(queryClient);
 }

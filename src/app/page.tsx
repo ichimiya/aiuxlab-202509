@@ -1,7 +1,7 @@
-import { ResearchInterface } from '@/features/research/components/ResearchInterface';
-import { ResearchVisualization } from '@/features/visualization/components/ResearchVisualization';
-import { HydrationBoundary } from '@/shared/components/HydrationBoundary';
-import { prefetchHomePageData } from '@/shared/lib/prefetchHelpers';
+import { ResearchInterface } from "@/features/research/components/ResearchInterface";
+import { ResearchVisualization } from "@/features/visualization/components/ResearchVisualization";
+import { HydrationBoundary } from "@/shared/components/HydrationBoundary";
+import { prefetchHomePageData } from "@/shared/lib/prefetchHelpers";
 
 export default async function Home() {
   // Server-side data prefetching
@@ -14,7 +14,7 @@ export default async function Home() {
         <div className="space-y-6">
           <ResearchInterface />
         </div>
-        
+
         {/* 3D Visualization */}
         <div className="space-y-6">
           <h2 className="text-xl font-semibold">リサーチ可視化</h2>

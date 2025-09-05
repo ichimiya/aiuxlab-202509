@@ -1,12 +1,13 @@
-import axios, { AxiosRequestConfig } from 'axios';
+import axios, { AxiosRequestConfig } from "axios";
 
 const axiosInstance = axios.create({
-  baseURL: process.env.NODE_ENV === 'development' 
-    ? 'http://localhost:3000/api' 
-    : '/api',
+  baseURL:
+    process.env.NODE_ENV === "development"
+      ? "http://localhost:3000/api"
+      : "/api",
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
 });
 
@@ -19,7 +20,7 @@ axiosInstance.interceptors.request.use(
   },
   (error) => {
     return Promise.reject(error);
-  }
+  },
 );
 
 // Response interceptor
@@ -29,13 +30,18 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error) => {
-    console.error(`API Error: ${error.response?.status} ${error.config?.url}`, error);
+    console.error(
+      `API Error: ${error.response?.status} ${error.config?.url}`,
+      error,
+    );
     return Promise.reject(error);
-  }
+  },
 );
 
 // Named export for Orval
-export const customInstance = <T = any>(config: AxiosRequestConfig): Promise<T> => {
+export const customInstance = <T = unknown>(
+  config: AxiosRequestConfig,
+): Promise<T> => {
   return axiosInstance(config).then((response) => response.data);
 };
 

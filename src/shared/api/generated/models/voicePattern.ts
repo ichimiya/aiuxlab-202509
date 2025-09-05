@@ -11,7 +11,6 @@
  */
 export type VoicePattern = (typeof VoicePattern)[keyof typeof VoicePattern];
 
-// eslint-disable-next-line @typescript-eslint/no-redeclare
 export const VoicePattern = {
   deepdive: "deepdive",
   perspective: "perspective",

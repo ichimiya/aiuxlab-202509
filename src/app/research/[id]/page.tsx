@@ -1,6 +1,6 @@
-import { HydrationBoundary } from '@/shared/components/HydrationBoundary';
-import { prefetchResearch } from '@/shared/lib/prefetchHelpers';
-import { ResearchDetailView } from '@/features/research/components/ResearchDetailView';
+import { HydrationBoundary } from "@/shared/components/HydrationBoundary";
+import { prefetchResearch } from "@/shared/lib/prefetchHelpers";
+import { ResearchDetailView } from "@/features/research/components/ResearchDetailView";
 
 interface ResearchPageProps {
   params: {

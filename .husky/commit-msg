@@ -1,0 +1,21 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+# Check if commit message follows semantic commit format
+commit_regex='^(feat|fix|docs|style|refactor|perf|test|chore|ci|revert)(\(.+\))?: .{1,50}'
+
+if ! grep -qE "$commit_regex" "$1"; then
+  echo "❌ Invalid commit message format!"
+  echo ""
+  echo "📝 Please use semantic commit format:"
+  echo "   <type>(<scope>): <subject>"
+  echo ""
+  echo "Types: feat, fix, docs, style, refactor, perf, test, chore, ci, revert"
+  echo "Example: feat(api): add user authentication"
+  echo ""
+  echo "Current message:"
+  echo "$(cat "$1")"
+  exit 1
+fi
+
+echo "✅ Commit message format is valid!"

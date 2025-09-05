@@ -1,5 +1,5 @@
-import { create } from 'zustand';
-import { devtools } from 'zustand/middleware';
+import { create } from "zustand";
+import { devtools } from "zustand/middleware";
 
 export interface ResearchState {
   selectedText: string;
@@ -19,8 +19,8 @@ export interface ResearchActions {
 type ResearchStore = ResearchState & ResearchActions;
 
 const initialState: ResearchState = {
-  selectedText: '',
-  voiceCommand: '',
+  selectedText: "",
+  voiceCommand: "",
   isListening: false,
   currentResearchId: null,
 };
@@ -29,24 +29,39 @@ export const useResearchStore = create<ResearchStore>()(
   devtools(
     (set) => ({
       ...initialState,
-      
+
       setSelectedText: (text) =>
-        set((state) => ({ ...state, selectedText: text }), false, 'setSelectedText'),
-      
+        set(
+          (state) => ({ ...state, selectedText: text }),
+          false,
+          "setSelectedText",
+        ),
+
       setVoiceCommand: (command) =>
-        set((state) => ({ ...state, voiceCommand: command }), false, 'setVoiceCommand'),
-      
+        set(
+          (state) => ({ ...state, voiceCommand: command }),
+          false,
+          "setVoiceCommand",
+        ),
+
       setIsListening: (listening) =>
-        set((state) => ({ ...state, isListening: listening }), false, 'setIsListening'),
-      
+        set(
+          (state) => ({ ...state, isListening: listening }),
+          false,
+          "setIsListening",
+        ),
+
       setCurrentResearchId: (id) =>
-        set((state) => ({ ...state, currentResearchId: id }), false, 'setCurrentResearchId'),
-      
-      reset: () =>
-        set(initialState, false, 'reset'),
+        set(
+          (state) => ({ ...state, currentResearchId: id }),
+          false,
+          "setCurrentResearchId",
+        ),
+
+      reset: () => set(initialState, false, "reset"),
     }),
     {
-      name: 'research-store',
-    }
-  )
+      name: "research-store",
+    },
+  ),
 );

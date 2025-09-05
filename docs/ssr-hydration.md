@@ -36,8 +36,8 @@
 
 ```tsx
 // pages/page.tsx
-import { HydrationBoundary } from '@/shared/components/hydration-boundary';
-import { prefetchHomePageData } from '@/shared/lib/prefetch-helpers';
+import { HydrationBoundary } from "@/shared/components/hydration-boundary";
+import { prefetchHomePageData } from "@/shared/lib/prefetch-helpers";
 
 export default async function HomePage() {
   const dehydratedState = await prefetchHomePageData();
@@ -54,9 +54,13 @@ export default async function HomePage() {
 
 ```tsx
 // pages/research/[id]/page.tsx
-import { prefetchResearch } from '@/shared/lib/prefetch-helpers';
+import { prefetchResearch } from "@/shared/lib/prefetch-helpers";
 
-export default async function ResearchPage({ params }: { params: { id: string } }) {
+export default async function ResearchPage({
+  params,
+}: {
+  params: { id: string };
+}) {
   const dehydratedState = await prefetchResearch(params.id);
 
   return (
@@ -74,7 +78,7 @@ export default async function ResearchPage({ params }: { params: { id: string } 
 function ResearchInterface() {
   // サーバーでプリフェッチされたデータが自動的に使用される
   const { data, isLoading } = useGetResearchHistory();
-  
+
   return (
     <div>
       {/* SSRでプリフェッチされているため、初期ローディングが短縮される */}
@@ -89,15 +93,15 @@ function ResearchInterface() {
 // prefetch-helpers.ts
 export async function prefetchCustomPageData(userId: string) {
   const queryClient = getQueryClient();
-  
+
   await queryClient.prefetchQuery({
-    queryKey: ['user', userId],
+    queryKey: ["user", userId],
     queryFn: () => getUser(userId),
     staleTime: 1000 * 60 * 5,
   });
 
   await queryClient.prefetchQuery({
-    queryKey: ['user-posts', userId],
+    queryKey: ["user-posts", userId],
     queryFn: () => getUserPosts(userId),
     staleTime: 1000 * 60 * 2,
   });
@@ -109,27 +113,32 @@ export async function prefetchCustomPageData(userId: string) {
 ## メリット
 
 ### パフォーマンス
+
 - **初期表示速度向上**: サーバーでデータプリフェッチ済み
 - **CLS削減**: レイアウトシフトの軽減
 - **キャッシュ効率**: React Queryの統一されたキャッシュ管理
 
 ### 開発体験
+
 - **型安全性**: OrvalによるTypeScript統合
 - **一貫性**: 同じAPIフックをSSR/CSRで使用可能
 - **デバッグ**: React Query DevToolsでキャッシュ状態確認
 
 ### SEO
+
 - **メタデータ生成**: サーバーサイドでのOGP生成
 - **検索エンジン**: 初期HTMLにデータ含有
 
 ## ベストプラクティス
 
 ### サーバーサイド
+
 - **エラーハンドリング**: プリフェッチエラーでもページ表示継続
 - **タイムアウト設定**: 長時間のAPI呼び出しを避ける
 - **キャッシュ戦略**: staleTimeを適切に設定
 
 ### クライアントサイド
+
 - **Suspense境界**: 非同期コンポーネントの適切な境界設定
 - **エラー境界**: ErrorBoundaryでのエラーハンドリング
 - **ローディング状態**: プリフェッチ失敗時のフォールバック

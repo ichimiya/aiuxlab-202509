@@ -12,7 +12,6 @@
 export type ResearchStatus =
   (typeof ResearchStatus)[keyof typeof ResearchStatus];
 
-// eslint-disable-next-line @typescript-eslint/no-redeclare
 export const ResearchStatus = {
   pending: "pending",
   processing: "processing",

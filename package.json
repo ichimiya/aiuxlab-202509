@@ -7,10 +7,17 @@
     "dev": "next dev --turbopack",
     "build": "pnpm generate:api && next build --turbopack",
     "start": "next start",
-    "lint": "eslint",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "tsc --noEmit",
+    "check": "pnpm lint && pnpm format:check && pnpm type-check",
+    "fix": "pnpm lint:fix && pnpm format",
     "generate:api": "orval",
     "generate:watch": "orval --watch",
-    "test": "vitest"
+    "test": "vitest",
+    "prepare": "husky"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.4",

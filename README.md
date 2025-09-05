@@ -5,6 +5,7 @@ AI時代の新しいリサーチ体験を探索する実験的POC
 ## ドキュメント
 
 ### 要件・設計
+
 - **プロダクトビジョン**: @docs/product-vision.md
 - **ターゲットユーザー**: @docs/target-users.md
 - **機能・優先順位**: @docs/features-and-priorities.md
@@ -12,6 +13,7 @@ AI時代の新しいリサーチ体験を探索する実験的POC
 - **成功指標**: @docs/success-metrics.md
 
 ### 開発
+
 - **技術仕様**: @docs/tech-stack.md
 - **開発ガイド**: @docs/development.md
 - **アーキテクチャ**: @docs/architecture.md
@@ -40,4 +42,4 @@ pnpm dev
 
 ---
 
-*このPOCで未来のリサーチ体験を実証しましょう！*
+_このPOCで未来のリサーチ体験を実証しましょう！_
