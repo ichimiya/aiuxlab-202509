@@ -1,0 +1,144 @@
+openapi: 3.0.0
+info:
+  title: AI Research POC API
+  description: AI時代の新しいリサーチ体験を探索するPOC API
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:3000/api
+    description: Development server
+
+paths:
+  /research:
+    get:
+      summary: リサーチ履歴を取得
+      operationId: getResearchHistory
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Research'
+
+    post:
+      summary: 新しいリサーチを開始
+      operationId: createResearch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResearchRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Research'
+
+  /research/{id}:
+    get:
+      summary: 特定のリサーチを取得
+      operationId: getResearch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Research'
+
+components:
+  schemas:
+    Research:
+      type: object
+      required:
+        - id
+        - query
+        - status
+        - createdAt
+      properties:
+        id:
+          type: string
+          description: リサーチID
+        query:
+          type: string
+          description: 初期クエリ
+        status:
+          type: string
+          enum: [pending, processing, completed, failed]
+          description: リサーチ状態
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResearchResult'
+          description: リサーチ結果
+        createdAt:
+          type: string
+          format: date-time
+          description: 作成日時
+        updatedAt:
+          type: string
+          format: date-time
+          description: 更新日時
+
+    ResearchResult:
+      type: object
+      required:
+        - id
+        - content
+        - source
+      properties:
+        id:
+          type: string
+          description: 結果ID
+        content:
+          type: string
+          description: リサーチ結果内容
+        source:
+          type: string
+          description: 情報源
+        relevanceScore:
+          type: number
+          format: float
+          description: 関連度スコア
+        voicePattern:
+          $ref: '#/components/schemas/VoicePattern'
+
+    VoicePattern:
+      type: string
+      enum: 
+        - deepdive
+        - perspective
+        - concrete
+        - data
+        - compare
+        - trend
+        - practical
+        - summary
+      description: 音声解釈パターン
+
+    CreateResearchRequest:
+      type: object
+      required:
+        - query
+      properties:
+        query:
+          type: string
+          description: リサーチクエリ
+        selectedText:
+          type: string
+          description: 選択されたテキスト
+        voiceCommand:
+          type: string
+          description: 音声コマンド
