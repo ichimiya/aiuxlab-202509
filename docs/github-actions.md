@@ -34,18 +34,6 @@
 - カバレッジレポート生成
 - テスト結果アーティファクト保存
 
-### 2. PR チェックワークフロー (`.github/workflows/pr-check.yml`)
-
-**トリガー**: Pull Request作成・更新時
-
-**詳細検証**:
-
-- 全品質チェック統合実行
-- フルビルド検証
-- セキュリティ監査
-- コミットメッセージ形式検証
-- Bundle分析（拡張予定）
-
 ## セットアップ手順
 
 ### 1. リポジトリシークレット設定
@@ -69,8 +57,6 @@ Branch protection rules:
        - 品質チェック
        - ビルドチェック
        - テスト実行
-       - PR検証
-       - コミットメッセージ検証
   ✅ Require branches to be up to date before merging
   ✅ Require linear history
   ✅ Do not allow bypassing the above settings
@@ -106,9 +92,9 @@ Branch protection rules:
 ### 推定実行時間
 
 - 品質チェック: ~2分
-- ビルドチェック: ~3分
-- テスト実行: ~1分
-- **合計**: ~4-5分（並列実行）
+- ビルドチェック: ~3分（並列実行）
+- テスト実行: ~1分（並列実行）
+- **合計**: ~3分（並列実行）
 
 ## エラー時の対応
 

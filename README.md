@@ -56,7 +56,6 @@ pnpm build
 - 🔍 **品質チェック**: ESLint, Prettier, TypeScript
 - 🏗️ **ビルド検証**: Next.js本番ビルド
 - 🧪 **テスト実行**: Vitest単体テスト
-- 📋 **PR検証**: セマンティックコミット確認
 
 ## 現在のステータス
 
