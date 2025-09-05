@@ -1,0 +1,28 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+echo "🔍 Running pre-commit checks..."
+
+# Generate API types if OpenAPI schema changed
+if git diff --cached --name-only | grep -q "src/shared/api/schemas/"; then
+  echo "📡 OpenAPI schema changed, regenerating API types..."
+  pnpm generate:api
+  git add src/shared/api/generated/
+fi
+
+# Auto-fix and run quality checks
+echo "🧹 Auto-fixing and running quality checks..."
+pnpm fix
+
+# Add any files modified by auto-fix
+git add .
+
+# Run final type check
+pnpm type-check
+
+if [ $? -eq 0 ]; then
+  echo "✅ All checks passed! Proceeding with commit..."
+else
+  echo "❌ Type check failed! Please fix the issues and try again."
+  exit 1
+fi

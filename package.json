@@ -1,0 +1,53 @@
+{
+  "name": "ai-research-poc",
+  "version": "0.1.0",
+  "private": true,
+  "description": "AI時代の新しいリサーチ体験を探索する実験的POC",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "pnpm generate:api && next build --turbopack",
+    "start": "next start",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "type-check": "tsc --noEmit",
+    "check": "pnpm lint && pnpm format:check && pnpm type-check",
+    "fix": "pnpm lint:fix && pnpm format",
+    "generate:api": "orval",
+    "generate:watch": "orval --watch",
+    "test": "vitest",
+    "prepare": "husky"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.7.4",
+    "@react-three/fiber": "^9.3.0",
+    "@tanstack/react-query": "^5.87.1",
+    "@tanstack/react-query-devtools": "^5.87.1",
+    "axios": "^1.11.0",
+    "next": "15.5.2",
+    "react": "19.1.0",
+    "react-dom": "19.1.0",
+    "three": "^0.180.0",
+    "zustand": "^5.0.8"
+  },
+  "devDependencies": {
+    "@eslint/eslintrc": "^3",
+    "@tailwindcss/postcss": "^4",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "@types/three": "^0.180.0",
+    "eslint": "^9",
+    "eslint-config-next": "15.5.2",
+    "husky": "^9.1.7",
+    "jsdom": "^26.1.0",
+    "orval": "^7.11.2",
+    "prettier": "^3.6.2",
+    "tailwindcss": "^4",
+    "typescript": "^5",
+    "vitest": "^3.2.4"
+  }
+}
