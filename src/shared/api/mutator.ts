@@ -5,7 +5,7 @@ const axiosInstance = axios.create({
     process.env.NODE_ENV === "development"
       ? "http://localhost:3000/api"
       : "/api",
-  timeout: 10000,
+  timeout: 60000, // 60秒に延長（Perplexity API用）
   headers: {
     "Content-Type": "application/json",
   },
