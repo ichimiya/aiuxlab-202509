@@ -7,24 +7,19 @@ import type { Research } from "../../api/generated/models";
 import type {
   IResearchAPIRepository,
   ResearchContext,
-  PerplexityAPIError,
 } from "../../infrastructure/external/perplexity";
 import { ResearchDomainService } from "../../domain/research/services";
-import type { IContentProcessingRepository } from "../../infrastructure/external/bedrock";
+import { ApplicationError } from "../errors";
 
 // ========================================
 // Use Case
 // ========================================
 
 export class ExecuteResearchUseCase {
-  private readonly domainService: ResearchDomainService;
-
   constructor(
     private readonly apiRepository: IResearchAPIRepository,
-    contentRepository?: IContentProcessingRepository,
-  ) {
-    this.domainService = new ResearchDomainService(contentRepository);
-  }
+    private readonly domainService: ResearchDomainService,
+  ) {}
 
   /**
    * リサーチを実行する（ユースケースの流れ）
@@ -40,26 +35,40 @@ export class ExecuteResearchUseCase {
         perplexityResponse,
       );
 
+      const start =
+        typeof performance !== "undefined" &&
+        typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
       // 3. コンテンツ処理（ContentRepository が注入されている場合）
-      return await this.domainService.enhanceResearchWithProcessedContent(
-        research,
-      );
-    } catch (error) {
-      // エラーハンドリング（アプリケーション層の責務）
-      if (this.isPerplexityAPIError(error)) {
-        throw error;
-      }
-      throw new Error(
-        `Research execution failed: ${error instanceof Error ? error.message : "Unknown error"}`,
-      );
-    }
-  }
+      const enhanced =
+        await this.domainService.enhanceResearchWithProcessedContent(research);
+      const end =
+        typeof performance !== "undefined" &&
+        typeof performance.now === "function"
+          ? performance.now()
+          : Date.now();
+      const durationMs = end - start;
+      if (durationMs > 0) {
+        // 軽量ログ（計測のみ）
 
-  /**
-   * PerplexityAPIErrorの型ガード
-   */
-  private isPerplexityAPIError(error: unknown): error is PerplexityAPIError {
-    return error instanceof Error && error.name === "PerplexityAPIError";
+        console.debug(
+          "enhanceResearchWithProcessedContent duration(ms):",
+          Math.round(durationMs),
+        );
+      }
+      return enhanced;
+    } catch (error) {
+      // アプリケーション層の責務として統一的にラップ
+      const message = `Research execution failed${error instanceof Error && error.message ? `: ${error.message}` : ""}`;
+      const isUpstream =
+        error instanceof Error && error.name?.includes("PerplexityAPIError");
+      throw new ApplicationError(message, {
+        code: isUpstream ? "UPSTREAM_ERROR" : "UNKNOWN_ERROR",
+        status: isUpstream ? 502 : 500,
+        cause: error,
+      });
+    }
   }
 }
 
@@ -75,7 +84,8 @@ export function createExecuteResearchUseCase(
 ): ExecuteResearchUseCase {
   const apiRepository = new PerplexityClient({ apiKey });
   const contentRepository = new BedrockClient();
-  return new ExecuteResearchUseCase(apiRepository, contentRepository);
+  const domainService = new ResearchDomainService(contentRepository);
+  return new ExecuteResearchUseCase(apiRepository, domainService);
 }
 
 // ========================================

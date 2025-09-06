@@ -1,28 +1,33 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
+import { ApplicationError } from "@/shared/useCases";
 
-// UseCaseをモック
-vi.mock("@/shared/useCases", () => ({
-  createExecuteResearchUseCase: vi.fn(() => ({
-    execute: vi.fn().mockResolvedValue({
-      id: "research-123",
-      query: "test query",
-      status: "completed",
-      results: [
-        {
-          id: "result-1",
-          content: "Test result content",
-          source: "Perplexity AI",
-          relevanceScore: 0.8,
-          citations: [],
-        },
-      ],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    }),
-  })),
-}));
+// UseCaseを部分モック（他のエクスポートは実体を利用）
+vi.mock("@/shared/useCases", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/shared/useCases")>();
+  return {
+    ...actual,
+    createExecuteResearchUseCase: vi.fn(() => ({
+      execute: vi.fn().mockResolvedValue({
+        id: "research-123",
+        query: "test query",
+        status: "completed",
+        results: [
+          {
+            id: "result-1",
+            content: "Test result content",
+            source: "Perplexity AI",
+            relevanceScore: 0.8,
+            citations: [],
+          },
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      }),
+    })),
+  };
+});
 
 describe("POST /api/research", () => {
   beforeEach(() => {
@@ -102,5 +107,35 @@ describe("POST /api/research", () => {
     expect(response.status).toBe(500);
     expect(data.message).toBe("Perplexity API key is not configured");
     expect(data.code).toBe("API_KEY_MISSING");
+  });
+
+  it("上流エラーをApplicationErrorとして受け取り、status/codeを反映する", async () => {
+    // 成功の既定モックを上書きして、今回は失敗させる
+    const { createExecuteResearchUseCase } = await import("@/shared/useCases");
+    const mockedFactory = vi.mocked(createExecuteResearchUseCase);
+    mockedFactory.mockReturnValueOnce({
+      execute: vi
+        .fn()
+        .mockRejectedValue(
+          new ApplicationError("Upstream failed", {
+            code: "UPSTREAM_ERROR",
+            status: 502,
+          }),
+        ),
+    } as unknown as { execute: () => Promise<unknown> });
+
+    const requestBody = { query: "test query" };
+    const request = new NextRequest("http://localhost:3000/api/research", {
+      method: "POST",
+      body: JSON.stringify(requestBody),
+      headers: { "content-type": "application/json" },
+    });
+
+    const response = await POST(request);
+    const data = await response.json();
+
+    expect(response.status).toBe(502);
+    expect(data.code).toBe("UPSTREAM_ERROR");
+    expect(data.message).toContain("Upstream failed");
   });
 });

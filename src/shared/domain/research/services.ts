@@ -4,7 +4,7 @@
  */
 
 import DOMPurify from "dompurify";
-import { JSDOM } from "jsdom";
+import { marked } from "marked";
 import type {
   Research,
   ResearchResult,
@@ -17,10 +17,19 @@ import type {
 } from "../../infrastructure/external/perplexity";
 import type { IContentProcessingRepository } from "../../infrastructure/external/bedrock";
 
-// Node.js環境でDOMPurifyを使用するための設定
-const window = new JSDOM("").window;
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const purify = DOMPurify(window as any);
+// DOMPurifyの初期化（環境に応じて分岐）
+let purify: typeof DOMPurify;
+if (typeof window !== "undefined") {
+  // ブラウザ環境
+  purify = DOMPurify;
+} else {
+  // Node.js環境
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { JSDOM } = require("jsdom");
+  const window = new JSDOM("").window;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  purify = DOMPurify(window as any);
+}
 
 // ========================================
 // 型定義
@@ -233,43 +242,10 @@ export class ResearchDomainService {
       const parsedResponse = this.parseLLMResponse(llmResponse);
 
       // 3. HTMLをサニタイズ（セマンティック要素を許可）
-      const sanitizedHtml = purify.sanitize(parsedResponse.htmlContent, {
-        ALLOWED_TAGS: [
-          "p",
-          "br",
-          "strong",
-          "em",
-          "ul",
-          "ol",
-          "li",
-          "h1",
-          "h2",
-          "h3",
-          "h4",
-          "h5",
-          "h6",
-          "a",
-          "span",
-          "div",
-          "blockquote",
-          "code",
-          "pre",
-          "table",
-          "thead",
-          "tbody",
-          "tr",
-          "th",
-          "td",
-          "cite",
-          "section",
-          "article",
-          "header",
-          "main",
-          "aside",
-          "footer",
-        ],
-        ALLOWED_ATTR: ["href", "id", "target", "rel"],
-      });
+      const sanitizedHtml = purify.sanitize(
+        parsedResponse.htmlContent,
+        SANITIZE_OPTIONS,
+      );
 
       return {
         htmlContent: sanitizedHtml,
@@ -348,17 +324,11 @@ export class ResearchDomainService {
     citations: string[],
     searchResults: Array<{ title: string; url: string }>,
   ): ProcessedContent {
-    // 基本的なMarkdown→HTML変換
-    let htmlContent = markdownContent
-      .replace(/### (.*?)$/gm, "<h3>$1</h3>")
-      .replace(/## (.*?)$/gm, "<h2>$1</h2>")
-      .replace(/# (.*?)$/gm, "<h1>$1</h1>")
-      .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
-      .replace(/\n\n/g, "</p><p>")
-      .replace(/^\s*-\s+(.*?)$/gm, "<li>$1</li>")
-      .replace(/(<li>.*<\/li>)/g, "<ul>$1</ul>");
-
-    htmlContent = `<p>${htmlContent}</p>`;
+    // 1) Markdown -> HTML（marked）
+    let htmlContent = marked.parse(markdownContent, {
+      mangle: false,
+      headerIds: false,
+    }) as string;
 
     // 引用番号の処理
     const citationPattern = /\[(\d+)\]/g;
@@ -384,7 +354,7 @@ export class ResearchDomainService {
       };
     });
 
-    // 引用番号をリンクに置換
+    // 2) 引用番号をリンクに置換
     htmlContent = htmlContent.replace(/\[(\d+)\]/g, (match, number) => {
       const citation = processedCitations.find(
         (c) => c.number === parseInt(number),
@@ -394,9 +364,51 @@ export class ResearchDomainService {
       return `<a href="#${citation.id}">${match}</a>`;
     });
 
+    // 3) サニタイズ（LLM経路と同等の許可リスト）
+    const sanitizedHtml = purify.sanitize(htmlContent, SANITIZE_OPTIONS);
+
     return {
-      htmlContent,
+      htmlContent: sanitizedHtml,
       processedCitations,
     };
   }
 }
+
+// 共有のサニタイズ設定
+const SANITIZE_OPTIONS = {
+  ALLOWED_TAGS: [
+    "p",
+    "br",
+    "strong",
+    "em",
+    "ul",
+    "ol",
+    "li",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "a",
+    "span",
+    "div",
+    "blockquote",
+    "code",
+    "pre",
+    "table",
+    "thead",
+    "tbody",
+    "tr",
+    "th",
+    "td",
+    "cite",
+    "section",
+    "article",
+    "header",
+    "main",
+    "aside",
+    "footer",
+  ],
+  ALLOWED_ATTR: ["href", "id", "target", "rel"],
+} as const;
