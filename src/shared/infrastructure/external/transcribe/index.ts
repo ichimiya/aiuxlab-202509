@@ -106,13 +106,12 @@ export class TranscribeClient {
    * ブラウザサポートチェック
    */
   checkSupport(): boolean {
-    return !!(
-      typeof window !== "undefined" &&
-      typeof navigator !== "undefined" &&
-      navigator.mediaDevices &&
-      navigator.mediaDevices.getUserMedia &&
-      typeof MediaRecorder !== "undefined"
-    );
+    if (typeof window === "undefined" || typeof navigator === "undefined") {
+      return false;
+    }
+    const hasMediaDevices = !!navigator.mediaDevices?.getUserMedia;
+    const hasRecorder = "MediaRecorder" in window;
+    return hasMediaDevices && hasRecorder;
   }
 
   /**
@@ -568,9 +567,13 @@ export class TranscribeClient {
               // closeがあれば試す（失敗しても握りつぶす）
               // close が存在するブラウザのみ実行
               try {
-                // @ts-expect-error: Safariではclose未実装の可能性
-                if (typeof this.audioContext.close === "function") {
-                  await this.audioContext.close();
+                const closeFn = (
+                  this.audioContext as unknown as {
+                    close?: () => Promise<void>;
+                  }
+                ).close;
+                if (typeof closeFn === "function") {
+                  await closeFn.call(this.audioContext);
                 }
               } catch (e) {
                 console.warn("AudioContext close error (ignored):", e);
