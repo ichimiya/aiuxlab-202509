@@ -17,7 +17,6 @@ export type ErrorContext =
   | "authentication"
   | "rate_limit"
   | "network"
-  | "timeout"
   | "service"
   | "validation"
   | "unknown";
@@ -27,41 +26,21 @@ export type ErrorContext =
  */
 export class ErrorHandler {
   private static readonly ERROR_PATTERNS = {
-    // 認証系エラーパターン
+    // 認証系エラー
     authentication: [
       /unauthorized/i,
       /invalid.*api.*key/i,
       /authentication.*failed/i,
-      /invalid.*token/i,
     ],
 
-    // レート制限系エラーパターン
+    // レート制限系エラー
     rate_limit: [/rate.*limit/i, /quota.*exceeded/i, /too.*many.*requests/i],
 
-    // ネットワーク系エラーパターン
-    network: [
-      /fetch.*failed/i,
-      /failed.*to.*fetch/i,
-      /connection.*failed/i,
-      /network.*error/i,
-      /econnrefused/i,
-      /enotfound/i,
-    ],
+    // ネットワーク系エラー
+    network: [/fetch.*failed/i, /network.*error/i, /connection.*failed/i],
 
-    // タイムアウト系エラーパターン
-    timeout: [
-      /timeout/i,
-      /aborted/i,
-      /abort.*error/i,
-      /the.*operation.*was.*aborted/i,
-    ],
-
-    // サービス系エラーパターン
-    service: [
-      /service.*unavailable/i,
-      /internal.*server.*error/i,
-      /http.*5\d{2}/i,
-    ],
+    // サービス系エラー
+    service: [/service.*unavailable/i, /internal.*server.*error/i],
   } as const;
 
   /**
@@ -92,7 +71,7 @@ export class ErrorHandler {
   ): PerplexityAPIError {
     const httpStatus = response.status;
     const apiErrorMessage =
-      errorData?.error?.message || `HTTP ${httpStatus}: ${response.statusText}`;
+      errorData?.message || `HTTP ${httpStatus}: ${response.statusText}`;
 
     const context = this.mapHttpStatusToContext(httpStatus);
     const errorDetail = this.createErrorDetail(
@@ -182,19 +161,10 @@ export class ErrorHandler {
    * HTTPステータスをエラーコンテキストにマッピングする
    */
   private static mapHttpStatusToContext(httpStatus: number): ErrorContext {
-    switch (httpStatus) {
-      case 401:
-        return "authentication";
-      case 429:
-        return "rate_limit";
-      case 500:
-      case 502:
-      case 503:
-      case 504:
-        return "service";
-      default:
-        return "unknown";
-    }
+    if (httpStatus === 401) return "authentication";
+    if (httpStatus === 429) return "rate_limit";
+    if (httpStatus >= 500) return "service";
+    return "unknown";
   }
 
   /**
@@ -229,17 +199,7 @@ export class ErrorHandler {
         return {
           type: PerplexityErrorType.NETWORK_ERROR,
           message,
-          userMessage:
-            "ネットワーク接続に問題があります。インターネット接続を確認してください。",
-          retryable: true,
-        };
-
-      case "timeout":
-        return {
-          type: PerplexityErrorType.TIMEOUT_ERROR,
-          message,
-          userMessage:
-            "リクエストがタイムアウトしました。しばらく時間をおいて再度お試しください。",
+          userMessage: "ネットワーク接続に問題があります。",
           retryable: true,
         };
 
@@ -247,8 +207,7 @@ export class ErrorHandler {
         return {
           type: PerplexityErrorType.SERVICE_UNAVAILABLE,
           message,
-          userMessage:
-            "サービスが一時的に利用できません。しばらく時間をおいて再度お試しください。",
+          userMessage: "サービスが一時的に利用できません。",
           httpStatus,
           retryable: true,
         };
@@ -257,7 +216,7 @@ export class ErrorHandler {
         return {
           type: PerplexityErrorType.INVALID_REQUEST,
           message,
-          userMessage: "入力内容に問題があります。内容を確認してください。",
+          userMessage: "入力内容に問題があります。",
           retryable: false,
         };
 
@@ -265,8 +224,7 @@ export class ErrorHandler {
         return {
           type: PerplexityErrorType.UNKNOWN_ERROR,
           message,
-          userMessage:
-            "予期しないエラーが発生しました。しばらく時間をおいて再度お試しください。",
+          userMessage: "予期しないエラーが発生しました。",
           httpStatus,
           retryable: true,
         };

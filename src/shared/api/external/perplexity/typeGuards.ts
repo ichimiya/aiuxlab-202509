@@ -7,11 +7,11 @@
 
 import type {
   PerplexityResponse,
-  PerplexityRequest,
   ResearchContext,
   PerplexityMessage,
   PerplexityChoice,
   PerplexityUsage,
+  PerplexityRequest,
 } from "./types";
 import { PerplexityConfig } from "./config";
 
@@ -77,7 +77,7 @@ export class TypeGuards {
       (obj.role === "system" ||
         obj.role === "user" ||
         obj.role === "assistant") &&
-      typeof obj.content === "string"
+      (typeof obj.content === "string" || obj.content === null)
     );
   }
 
@@ -194,7 +194,8 @@ export class StrictValidators {
     return (
       response.choices.length > 0 &&
       response.choices.every(
-        (choice) => choice.message.content.trim().length > 0,
+        (choice) =>
+          choice.message.content && choice.message.content.trim().length > 0,
       ) &&
       TypeGuards.isPerplexityUsage(response.usage)
     );

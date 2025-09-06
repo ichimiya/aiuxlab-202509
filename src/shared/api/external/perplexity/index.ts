@@ -20,12 +20,9 @@ export { TypeGuards, StrictValidators } from "./typeGuards";
 // 型定義
 export type {
   PerplexityConfig as IPerplexityConfig,
-  PerplexityRequest,
   PerplexityResponse,
   PerplexityError,
   PerplexityMessage,
-  PerplexityChoice,
-  PerplexityUsage,
   ResearchContext,
   PerplexityErrorType,
   PerplexityErrorDetail,

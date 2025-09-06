@@ -17,7 +17,12 @@ describe("TypeGuards", () => {
         choices: [
           {
             index: 0,
-            message: { role: "assistant", content: "Test response" },
+            message: {
+              role: "assistant",
+              content: "Test response",
+              refusal: null,
+            },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],
@@ -164,7 +169,8 @@ describe("StrictValidators", () => {
         choices: [
           {
             index: 0,
-            message: { role: "assistant", content: "test" },
+            message: { role: "assistant", content: "test", refusal: null },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],
@@ -191,7 +197,8 @@ describe("StrictValidators", () => {
         choices: [
           {
             index: 0,
-            message: { role: "assistant", content: "test" },
+            message: { role: "assistant", content: "test", refusal: null },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],

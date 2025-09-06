@@ -10,11 +10,6 @@ import { RelevanceCalculator, IdGenerator, ValidationUtils } from "./utils";
  * リサーチ実行サービス
  * Perplexity APIを使用してリサーチを実行し、結果をアプリケーションの形式に変換する
  */
-
-/**
- * リサーチ実行サービス
- * Perplexity APIを使用してリサーチを実行し、結果をアプリケーションの形式に変換する
- */
 export class ResearchService {
   private readonly client: PerplexityClient;
 
@@ -127,14 +122,15 @@ export class ResearchService {
     index: number,
     responseId: string,
   ): ResearchResult {
+    const content = choice.message.content || "";
     const relevanceScore = RelevanceCalculator.calculate(
       context.query,
-      choice.message.content,
+      content,
     );
 
     return {
       id: IdGenerator.generateResultId(responseId, index),
-      content: choice.message.content,
+      content: content,
       source: PerplexityConfig.RESEARCH_CONSTANTS.SOURCE_NAME,
       relevanceScore,
       voicePattern: this.mapVoiceCommand(context.voiceCommand),

@@ -66,7 +66,9 @@ describe("ResearchService", () => {
             message: {
               role: "assistant",
               content: "AI技術の最新動向について詳しく説明します...",
+              refusal: null,
             },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],
@@ -113,7 +115,9 @@ describe("ResearchService", () => {
             message: {
               role: "assistant",
               content: "量子コンピューティングは、量子力学の原理を利用した...",
+              refusal: null,
             },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],
@@ -153,7 +157,9 @@ describe("ResearchService", () => {
             message: {
               role: "assistant",
               content: "ブロックチェーン技術の詳細な分析を行います...",
+              refusal: null,
             },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],
@@ -191,7 +197,9 @@ describe("ResearchService", () => {
             message: {
               role: "assistant",
               content: "教師あり学習のアルゴリズムには...",
+              refusal: null,
             },
+            logprobs: null,
             finish_reason: "stop",
           },
           {
@@ -199,7 +207,9 @@ describe("ResearchService", () => {
             message: {
               role: "assistant",
               content: "教師なし学習のアプローチとして...",
+              refusal: null,
             },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],
@@ -363,7 +373,9 @@ describe("ResearchService", () => {
               role: "assistant",
               content:
                 "Artificial intelligence and machine learning are closely related technical fields that power modern AI systems...",
+              refusal: null,
             },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],
@@ -403,7 +415,9 @@ describe("ResearchService", () => {
             message: {
               role: "assistant",
               content: "テスト結果",
+              refusal: null,
             },
+            logprobs: null,
             finish_reason: "stop",
           },
         ],

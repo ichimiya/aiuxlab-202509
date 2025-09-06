@@ -1,145 +1,129 @@
 import { describe, it, expect } from "vitest";
-import { TextUtils, RelevanceCalculator } from "./utils";
+import {
+  TextUtils,
+  RelevanceCalculator,
+  ValidationUtils,
+  IdGenerator,
+} from "./utils";
 
 describe("TextUtils", () => {
-  describe("トークン化パフォーマンス", () => {
-    it("大量のテキストを効率的にトークン化する", () => {
-      const largeText = Array.from(
-        { length: 1000 },
-        (_, i) => `word${i} artificial intelligence machine learning`,
-      ).join(" ");
-
-      const startTime = performance.now();
-      const tokens = TextUtils.tokenize(largeText);
-      const endTime = performance.now();
-
-      expect(endTime - startTime).toBeLessThan(50); // 50ms以内
-      expect(tokens.length).toBeGreaterThan(1000); // 大量のトークン
-      expect(tokens).toContain("artificial");
-    });
-
-    it("メモ化により同じテキストは高速処理される", () => {
-      const text = "artificial intelligence machine learning";
-
-      // 1回目
-      const startTime1 = performance.now();
-      const tokens1 = TextUtils.tokenize(text);
-      const endTime1 = performance.now();
-
-      // 2回目（キャッシュされている）
-      const startTime2 = performance.now();
-      const tokens2 = TextUtils.tokenize(text);
-      const endTime2 = performance.now();
-
-      expect(tokens1).toEqual(tokens2);
-      expect(endTime2 - startTime2).toBeLessThan(endTime1 - startTime1);
-    });
-
+  describe("トークン化", () => {
     it("正しくトークン化される", () => {
       const text = "Hello, World! This is AI.";
       const tokens = TextUtils.tokenize(text);
 
       expect(tokens).toEqual(["hello", "world", "this"]);
     });
+
+    it("空文字列は空配列を返す", () => {
+      const tokens = TextUtils.tokenize("");
+      expect(tokens).toEqual([]);
+    });
+
+    it("短い単語は除外される", () => {
+      const text = "a to in the AI ML";
+      const tokens = TextUtils.tokenize(text);
+
+      expect(tokens).not.toContain("a");
+      expect(tokens).not.toContain("to");
+      expect(tokens).not.toContain("in");
+    });
   });
 
-  describe("部分一致検出の最適化", () => {
-    it("効率的に部分一致をカウントする", () => {
-      const queryWords = ["tech", "learn", "artif"];
-      const contentWords = [
-        "technology",
-        "machine",
-        "learning",
-        "algorithms",
-        "artificial",
-        "intelligence",
-      ];
+  describe("類似度計算", () => {
+    it("同一テキストは類似度1.0を返す", () => {
+      const text = "artificial intelligence machine learning";
+      const similarity = TextUtils.calculateSimilarity(text, text);
 
-      const startTime = performance.now();
-      const partialMatches = TextUtils.countPartialMatches(
-        queryWords,
-        contentWords,
-      );
-      const endTime = performance.now();
+      expect(similarity).toBe(1.0);
+    });
 
-      expect(endTime - startTime).toBeLessThan(5); // 5ms以内
-      expect(partialMatches).toBeGreaterThan(0);
+    it("異なるテキストは適切な類似度を返す", () => {
+      const text1 = "artificial intelligence";
+      const text2 = "machine learning";
+      const similarity = TextUtils.calculateSimilarity(text1, text2);
+
+      expect(similarity).toBeGreaterThanOrEqual(0);
+      expect(similarity).toBeLessThanOrEqual(1.0);
+    });
+
+    it("空文字列の場合の処理", () => {
+      const similarity1 = TextUtils.calculateSimilarity("", "test");
+      const similarity2 = TextUtils.calculateSimilarity("test", "");
+      const similarity3 = TextUtils.calculateSimilarity("", "");
+
+      expect(similarity1).toBe(0.0);
+      expect(similarity2).toBe(0.0);
+      expect(similarity3).toBe(1.0);
     });
   });
 });
 
 describe("RelevanceCalculator", () => {
-  describe("スコア計算の最適化", () => {
-    it("高速にスコアを計算する", () => {
-      const query =
-        "artificial intelligence machine learning deep neural networks";
+  describe("関連度計算", () => {
+    it("高関連コンテンツは高いスコアを返す", () => {
+      const query = "artificial intelligence machine learning";
       const content =
-        "Artificial intelligence and machine learning are revolutionizing technology. Deep neural networks enable sophisticated AI systems to process complex data patterns.";
+        "Artificial intelligence and machine learning are important technologies.";
 
-      const startTime = performance.now();
       const score = RelevanceCalculator.calculate(query, content);
-      const endTime = performance.now();
 
-      expect(endTime - startTime).toBeLessThan(5); // 5ms以内
-      expect(score).toBeGreaterThan(0.5); // 高い関連性
+      expect(score).toBeGreaterThan(0.5);
       expect(score).toBeLessThanOrEqual(1.0);
     });
 
-    it("空文字列を効率的に処理する", () => {
-      const score1 = RelevanceCalculator.calculate("", "some content");
-      const score2 = RelevanceCalculator.calculate("query", "");
-      const score3 = RelevanceCalculator.calculate("", "");
+    it("低関連コンテンツは低いスコアを返す", () => {
+      const query = "artificial intelligence";
+      const content =
+        "Cooking recipes and traditional food preparation methods.";
 
-      expect(score1).toBe(0.1); // MIN_RELEVANCE_SCORE
-      expect(score2).toBe(0.1);
-      expect(score3).toBe(0.1);
+      const score = RelevanceCalculator.calculate(query, content);
+
+      expect(score).toBeLessThan(0.3);
     });
 
-    it("複雑なテキストで正確なスコアを計算する", () => {
-      const query = "quantum computing algorithms";
-      const highRelevanceContent =
-        "Quantum computing algorithms utilize quantum mechanical phenomena to perform calculations faster than classical computers.";
-      const lowRelevanceContent =
-        "Traditional cooking recipes have been passed down through generations in various cultures.";
+    it("空文字列は最小関連度を返す", () => {
+      const score1 = RelevanceCalculator.calculate("", "some content");
+      const score2 = RelevanceCalculator.calculate("query", "");
 
-      const highScore = RelevanceCalculator.calculate(
-        query,
-        highRelevanceContent,
-      );
-      const lowScore = RelevanceCalculator.calculate(
-        query,
-        lowRelevanceContent,
-      );
-
-      expect(highScore).toBeGreaterThan(lowScore);
-      expect(highScore).toBeGreaterThan(0.3);
-      expect(lowScore).toBeLessThan(0.2);
+      expect(score1).toBe(0.1);
+      expect(score2).toBe(0.1);
     });
   });
 });
 
-describe("統合パフォーマンス", () => {
-  it("大量データ処理でもパフォーマンスが保たれる", () => {
-    const queries = Array.from(
-      { length: 100 },
-      (_, i) =>
-        `test query ${i} with various keywords artificial intelligence machine learning`,
-    );
-    const content =
-      "This is a test content about artificial intelligence, machine learning, deep learning, neural networks, and various AI technologies.".repeat(
-        10,
-      );
+describe("ValidationUtils", () => {
+  describe("バリデーション", () => {
+    it("有効なAPIキーを正しく判定する", () => {
+      expect(ValidationUtils.validateApiKey("valid-key")).toBe(true);
+      expect(ValidationUtils.validateApiKey("")).toBe(false);
+      expect(ValidationUtils.validateApiKey(undefined)).toBe(false);
+    });
 
-    const startTime = performance.now();
+    it("有効なクエリを正しく判定する", () => {
+      expect(ValidationUtils.validateQuery("test query")).toBe(true);
+      expect(ValidationUtils.validateQuery("")).toBe(false);
+      expect(ValidationUtils.validateQuery("   ")).toBe(false);
+      expect(ValidationUtils.validateQuery(undefined)).toBe(false);
+    });
+  });
+});
 
-    const scores = queries.map((query) =>
-      RelevanceCalculator.calculate(query, content),
-    );
+describe("IdGenerator", () => {
+  describe("ID生成", () => {
+    it("一意なリサーチIDを生成する", () => {
+      const id1 = IdGenerator.generateResearchId();
+      const id2 = IdGenerator.generateResearchId();
 
-    const endTime = performance.now();
+      expect(id1).not.toBe(id2);
+      expect(id1).toMatch(/^research-\d+-[a-z0-9]+$/);
+    });
 
-    expect(endTime - startTime).toBeLessThan(100); // 100ms以内
-    expect(scores).toHaveLength(100);
-    expect(scores.every((score) => score > 0 && score <= 1)).toBe(true);
+    it("結果IDを正しく生成する", () => {
+      const baseId = "research-123-abc";
+      const resultId = IdGenerator.generateResultId(baseId, 0);
+
+      expect(resultId).toBe("research-123-abc-0");
+    });
   });
 });

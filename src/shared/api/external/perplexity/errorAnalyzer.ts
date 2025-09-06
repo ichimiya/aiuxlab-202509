@@ -103,7 +103,7 @@ export class PerplexityErrorAnalyzer {
   private static createAuthenticationError(
     errorData?: PerplexityError,
   ): PerplexityErrorDetail {
-    const message = errorData?.error?.message || "Authentication failed";
+    const message = errorData?.message || "Authentication failed";
     return {
       type: PerplexityErrorType.AUTHENTICATION_FAILED,
       message,
@@ -119,7 +119,7 @@ export class PerplexityErrorAnalyzer {
   private static createPermissionError(
     errorData?: PerplexityError,
   ): PerplexityErrorDetail {
-    const message = errorData?.error?.message || "Permission denied";
+    const message = errorData?.message || "Permission denied";
     return {
       type: PerplexityErrorType.INSUFFICIENT_PERMISSIONS,
       message,
@@ -137,7 +137,7 @@ export class PerplexityErrorAnalyzer {
     errorData?: PerplexityError,
   ): PerplexityErrorDetail {
     const retryAfter = this.extractRetryAfter(response);
-    const message = errorData?.error?.message || "Rate limit exceeded";
+    const message = errorData?.message || "Rate limit exceeded";
 
     return {
       type: PerplexityErrorType.RATE_LIMIT_EXCEEDED,
@@ -157,7 +157,7 @@ export class PerplexityErrorAnalyzer {
   private static createTokenLimitError(
     errorData?: PerplexityError,
   ): PerplexityErrorDetail {
-    const message = errorData?.error?.message || "Token limit exceeded";
+    const message = errorData?.message || "Token limit exceeded";
     return {
       type: PerplexityErrorType.TOKEN_LIMIT_EXCEEDED,
       message,
@@ -175,7 +175,7 @@ export class PerplexityErrorAnalyzer {
     httpStatus: number,
     errorData?: PerplexityError,
   ): PerplexityErrorDetail {
-    const message = errorData?.error?.message || "Service error";
+    const message = errorData?.message || "Service error";
     let type: PerplexityErrorType;
     let userMessage: string;
 
@@ -207,7 +207,7 @@ export class PerplexityErrorAnalyzer {
     httpStatus: number,
     errorData?: PerplexityError,
   ): PerplexityErrorDetail {
-    const message = errorData?.error?.message || `HTTP ${httpStatus} error`;
+    const message = errorData?.message || `HTTP ${httpStatus} error`;
     return {
       type: PerplexityErrorType.UNKNOWN_ERROR,
       message,

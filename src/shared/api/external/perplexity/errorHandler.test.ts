@@ -49,11 +49,11 @@ describe("ErrorHandler", () => {
     });
 
     it("開発者向けメッセージも保持する", () => {
-      const error = new Error("Connection timeout after 30s");
-      const result = ErrorHandler.handleError(error, "timeout");
+      const error = new Error("Network connection failed");
+      const result = ErrorHandler.handleError(error, "network");
 
-      expect(result.message).toContain("Connection timeout");
-      expect(result.userMessage).toContain("タイムアウト");
+      expect(result.message).toContain("Network connection");
+      expect(result.userMessage).toContain("ネットワーク");
     });
   });
 

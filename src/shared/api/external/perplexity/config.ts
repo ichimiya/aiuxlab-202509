@@ -70,21 +70,6 @@ const ERROR_MESSAGES = {
 } as const;
 
 /**
- * パフォーマンス設定
- */
-const PERFORMANCE_CONFIG = {
-  RELEVANCE_CALCULATION: {
-    EXACT_MATCH_WEIGHT: 1.0,
-    PARTIAL_MATCH_WEIGHT: 0.5,
-    MIN_WORD_LENGTH: 2,
-  },
-  CACHING: {
-    PROMPT_TEMPLATE_CACHE_SIZE: 100,
-    CONFIG_MERGE_CACHE_SIZE: 50,
-  },
-} as const;
-
-/**
  * Perplexity API設定の一元管理クラス
  */
 export class PerplexityConfig {
@@ -94,7 +79,6 @@ export class PerplexityConfig {
   static readonly VOICE_COMMAND_INSTRUCTIONS = VOICE_COMMAND_INSTRUCTIONS;
   static readonly RESEARCH_CONSTANTS = RESEARCH_CONSTANTS;
   static readonly ERROR_MESSAGES = ERROR_MESSAGES;
-  static readonly PERFORMANCE_CONFIG = PERFORMANCE_CONFIG;
 
   /**
    * 音声コマンドに対応する指示を取得
