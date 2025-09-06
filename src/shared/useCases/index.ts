@@ -8,3 +8,5 @@ export {
   createExecuteResearchUseCase,
   type ResearchContext,
 } from "./ExecuteResearchUseCase";
+
+export { OptimizeQueryUseCase } from "./OptimizeQueryUseCase";
