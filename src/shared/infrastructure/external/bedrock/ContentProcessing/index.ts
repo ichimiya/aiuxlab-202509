@@ -139,4 +139,4 @@ ${request.markdownContent}
 }
 
 // 互換エイリアス（旧名）
-export { BedrockContentProcessingClient as BedrockClient };
+// 互換エイリアスは現在は提供しない（明確な命名に統一）

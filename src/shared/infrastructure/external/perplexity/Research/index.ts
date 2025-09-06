@@ -139,4 +139,4 @@ export { OpenAI };
 export type PerplexityMessage = OpenAI.Chat.ChatCompletionMessageParam;
 
 // 互換エイリアス（従来名）
-export { PerplexityResearchClient as PerplexityClient };
+// 互換エイリアスは現在は提供しない（明確な命名に統一）
