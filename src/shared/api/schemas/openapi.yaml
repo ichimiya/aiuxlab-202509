@@ -64,6 +64,16 @@ components:
           items:
             $ref: "#/components/schemas/ResearchResult"
           description: リサーチ結果
+        searchResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/SearchResult"
+          description: Perplexity検索結果
+        citations:
+          type: array
+          items:
+            type: string
+          description: 引用URL一覧
         createdAt:
           type: string
           format: date-time
@@ -85,7 +95,7 @@ components:
           description: 結果ID
         content:
           type: string
-          description: リサーチ結果内容
+          description: HTML化されたリサーチ結果内容
         source:
           type: string
           description: 情報源
@@ -95,6 +105,11 @@ components:
           description: 関連度スコア
         voicePattern:
           $ref: "#/components/schemas/VoicePattern"
+        processedCitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProcessedCitation"
+          description: 構造化された引用情報
 
     VoicePattern:
       type: string
@@ -124,6 +139,56 @@ components:
         voiceCommand:
           type: string
           description: 音声コマンド
+
+    SearchResult:
+      type: object
+      required:
+        - title
+        - url
+        - snippet
+      properties:
+        title:
+          type: string
+          description: ページタイトル
+        url:
+          type: string
+          description: ページURL
+        snippet:
+          type: string
+          description: ページ概要
+        date:
+          type: string
+          nullable: true
+          description: 記事作成日（オプショナル）
+        last_updated:
+          type: string
+          nullable: true
+          description: 最終更新日（オプショナル）
+
+    ProcessedCitation:
+      type: object
+      required:
+        - id
+        - number
+        - url
+      properties:
+        id:
+          type: string
+          description: 引用ID（ref1, ref2など）
+        number:
+          type: number
+          description: 引用番号（1, 2など）
+        url:
+          type: string
+          description: 引用URL
+        title:
+          type: string
+          nullable: true
+          description: 引用タイトル
+        domain:
+          type: string
+          nullable: true
+          description: 引用ドメイン
 
     Error:
       type: object

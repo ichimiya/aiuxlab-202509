@@ -11,9 +11,9 @@ import type OpenAI from "openai";
 export interface PerplexitySearchResult {
   title: string;
   url: string;
-  date: string;
-  last_updated: string;
   snippet: string;
+  date?: string;
+  last_updated?: string;
 }
 
 /**

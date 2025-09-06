@@ -1,10 +1,15 @@
 import { PerplexityClient } from "./client";
 import type { ResearchContext, PerplexityResponse } from "./types";
-import type { Research, ResearchResult } from "../../generated/models";
+import type {
+  Research,
+  ResearchResult,
+  SearchResult,
+} from "../../generated/models";
 import type { VoicePattern } from "../../generated/models/voicePattern";
 import { ErrorHandler } from "./errorHandler";
 import { PerplexityConfig } from "./config";
 import { RelevanceCalculator, IdGenerator, ValidationUtils } from "./utils";
+import { ContentProcessor } from "./contentProcessor";
 
 /**
  * リサーチ実行サービス
@@ -116,6 +121,9 @@ export class ResearchService {
       results,
       createdAt: timestamp,
       updatedAt: timestamp,
+      // 引用情報をメタデータとして保存
+      searchResults: this.transformSearchResults(response.search_results),
+      citations: response.citations || [],
     };
   }
 
@@ -129,10 +137,17 @@ export class ResearchService {
     responseId: string,
     response: PerplexityResponse,
   ): ResearchResult {
-    const content = choice.message.content || "";
+    const rawContent = choice.message.content || "";
     const relevanceScore = RelevanceCalculator.calculate(
       context.query,
-      content,
+      rawContent,
+    );
+
+    // Markdownコンテンツを構造化されたHTMLに変換
+    const processedContent = ContentProcessor.processContent(
+      rawContent,
+      response.citations || [],
+      response.search_results || [],
     );
 
     // search_resultsから実際のソース情報を抽出
@@ -140,10 +155,12 @@ export class ResearchService {
 
     return {
       id: IdGenerator.generateResultId(responseId, index),
-      content: content,
+      content: processedContent.htmlContent, // HTML化されたコンテンツ
       source: primarySource,
       relevanceScore,
       voicePattern: this.mapVoiceCommand(context.voiceCommand),
+      // 構造化された引用情報を追加（後で型定義に含める）
+      processedCitations: processedContent.processedCitations,
     };
   }
 
@@ -187,6 +204,23 @@ export class ResearchService {
     // ValidationUtilsでバリデーションを実行
 
     return ValidationUtils.validateVoiceCommand(voiceCommand);
+  }
+
+  /**
+   * PerplexityのSearchResultを変換
+   */
+  private transformSearchResults(
+    searchResults?: PerplexityResponse["search_results"],
+  ): SearchResult[] {
+    if (!searchResults) return [];
+
+    return searchResults.map((result) => ({
+      title: result.title,
+      url: result.url,
+      snippet: result.snippet,
+      date: result.date || null,
+      last_updated: result.last_updated || null,
+    }));
   }
 
   /**

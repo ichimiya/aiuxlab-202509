@@ -16,6 +16,8 @@ export interface ResearchResultDisplayViewModel {
   isLoading: boolean;
   hasError: boolean;
   hasResults: boolean;
+  hasCitations: boolean;
+  hasSearchResults: boolean;
 
   // Computed Values
   statusDisplayConfig: {
@@ -38,6 +40,14 @@ export function useResearchResultDisplayViewModel({
 
   const hasError = useMemo(() => !!error, [error]);
   const hasResults = useMemo(() => results.length > 0, [results]);
+  const hasCitations = useMemo(
+    () => !!research?.citations && research.citations.length > 0,
+    [research?.citations],
+  );
+  const hasSearchResults = useMemo(
+    () => !!research?.searchResults && research.searchResults.length > 0,
+    [research?.searchResults],
+  );
 
   const statusDisplayConfig = useMemo(() => {
     if (!research?.status) {
@@ -77,7 +87,7 @@ export function useResearchResultDisplayViewModel({
 
   // Helper functions
   const formatResultContent = (content: string): string => {
-    // フルコンテンツを表示（制限撤廃）
+    // HTMLコンテンツをそのまま返却（BFF層で処理済み）
     return content;
   };
 
@@ -95,6 +105,8 @@ export function useResearchResultDisplayViewModel({
     isLoading,
     hasError,
     hasResults,
+    hasCitations,
+    hasSearchResults,
 
     // Computed Values
     statusDisplayConfig,

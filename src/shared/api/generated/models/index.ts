@@ -8,7 +8,9 @@
 
 export * from "./createResearchRequest";
 export * from "./error";
+export * from "./processedCitation";
 export * from "./research";
 export * from "./researchResult";
 export * from "./researchStatus";
+export * from "./searchResult";
 export * from "./voicePattern";

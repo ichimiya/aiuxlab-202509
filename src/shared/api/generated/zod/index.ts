@@ -24,7 +24,7 @@ export const executeResearchResponse = zod.object({
     .array(
       zod.object({
         id: zod.string().describe("結果ID"),
-        content: zod.string().describe("リサーチ結果内容"),
+        content: zod.string().describe("HTML化されたリサーチ結果内容"),
         source: zod.string().describe("情報源"),
         relevanceScore: zod.number().optional().describe("関連度スコア"),
         voicePattern: zod
@@ -40,10 +40,38 @@ export const executeResearchResponse = zod.object({
           ])
           .optional()
           .describe("音声解釈パターン"),
+        processedCitations: zod
+          .array(
+            zod.object({
+              id: zod.string().describe("引用ID（ref1, ref2など）"),
+              number: zod.number().describe("引用番号（1, 2など）"),
+              url: zod.string().describe("引用URL"),
+              title: zod.string().nullish().describe("引用タイトル"),
+              domain: zod.string().nullish().describe("引用ドメイン"),
+            }),
+          )
+          .optional()
+          .describe("構造化された引用情報"),
       }),
     )
     .optional()
     .describe("リサーチ結果"),
+  searchResults: zod
+    .array(
+      zod.object({
+        title: zod.string().describe("ページタイトル"),
+        url: zod.string().describe("ページURL"),
+        snippet: zod.string().describe("ページ概要"),
+        date: zod.string().nullish().describe("記事作成日（オプショナル）"),
+        last_updated: zod
+          .string()
+          .nullish()
+          .describe("最終更新日（オプショナル）"),
+      }),
+    )
+    .optional()
+    .describe("Perplexity検索結果"),
+  citations: zod.array(zod.string()).optional().describe("引用URL一覧"),
   createdAt: zod.iso.datetime({}).describe("作成日時"),
   updatedAt: zod.iso.datetime({}).optional().describe("更新日時"),
 });
