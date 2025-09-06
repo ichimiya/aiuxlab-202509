@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 import { ApplicationError } from "@/shared/useCases";
+import type { ExecuteResearchUseCase } from "@/shared/useCases/ExecuteResearchUseCase";
 
 // UseCaseを部分モック（他のエクスポートは実体を利用）
 vi.mock("@/shared/useCases", async (importOriginal) => {
@@ -114,15 +115,13 @@ describe("POST /api/research", () => {
     const { createExecuteResearchUseCase } = await import("@/shared/useCases");
     const mockedFactory = vi.mocked(createExecuteResearchUseCase);
     mockedFactory.mockReturnValueOnce({
-      execute: vi
-        .fn()
-        .mockRejectedValue(
-          new ApplicationError("Upstream failed", {
-            code: "UPSTREAM_ERROR",
-            status: 502,
-          }),
-        ),
-    } as unknown as { execute: () => Promise<unknown> });
+      execute: vi.fn().mockRejectedValue(
+        new ApplicationError("Upstream failed", {
+          code: "UPSTREAM_ERROR",
+          status: 502,
+        }),
+      ),
+    } as unknown as ExecuteResearchUseCase);
 
     const requestBody = { query: "test query" };
     const request = new NextRequest("http://localhost:3000/api/research", {

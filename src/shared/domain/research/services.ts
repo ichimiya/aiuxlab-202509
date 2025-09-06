@@ -325,10 +325,8 @@ export class ResearchDomainService {
     searchResults: Array<{ title: string; url: string }>,
   ): ProcessedContent {
     // 1) Markdown -> HTML（marked）
-    let htmlContent = marked.parse(markdownContent, {
-      mangle: false,
-      headerIds: false,
-    }) as string;
+    const htmlContentRaw = marked.parse(markdownContent) as string;
+    let htmlContent = htmlContentRaw;
 
     // 引用番号の処理
     const citationPattern = /\[(\d+)\]/g;
@@ -411,4 +409,4 @@ const SANITIZE_OPTIONS = {
     "footer",
   ],
   ALLOWED_ATTR: ["href", "id", "target", "rel"],
-} as const;
+};

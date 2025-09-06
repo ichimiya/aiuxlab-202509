@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import {
   TranscribeStreamingClient,
   StartStreamTranscriptionCommand,
@@ -283,11 +282,7 @@ export class TranscribeClient {
     // AudioWorklet へ切替（ScriptProcessorNode は非推奨）
     const workletUrl = getOrCreatePCMWorkletURL();
     const ac = this.audioContext as AudioContext;
-    await (
-      ac as unknown as {
-        audioWorklet: { addModule: (u: string) => Promise<void> };
-      }
-    ).audioWorklet.addModule(workletUrl);
+    await ac.audioWorklet.addModule(workletUrl);
 
     const source = this.audioContext.createMediaStreamSource(this.mediaStream);
     const frameSize = 1024; // Worklet入力側フレーム（実サンプルレート基準）

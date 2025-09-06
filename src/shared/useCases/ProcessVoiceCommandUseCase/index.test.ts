@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, type Mocked } from "vitest";
 import { ProcessVoiceCommandUseCase } from "./index";
 import { TranscribeClient } from "../../infrastructure/external/transcribe";
 import { VoiceDomainService } from "../../domain/voice/services";
@@ -9,8 +9,8 @@ vi.mock("../../domain/voice/services");
 
 describe("ProcessVoiceCommandUseCase", () => {
   let useCase: ProcessVoiceCommandUseCase;
-  let mockTranscribeClient: vi.Mocked<TranscribeClient>;
-  let mockVoiceDomainService: vi.Mocked<VoiceDomainService>;
+  let mockTranscribeClient: Mocked<TranscribeClient>;
+  let mockVoiceDomainService: Mocked<VoiceDomainService>;
 
   beforeEach(() => {
     mockTranscribeClient = {
@@ -19,8 +19,9 @@ describe("ProcessVoiceCommandUseCase", () => {
       requestPermission: vi.fn(),
       startRealTimeTranscription: vi.fn(),
       stopTranscription: vi.fn(),
+      setEventHandlers: vi.fn(),
       isActive: false,
-    } as vi.Mocked<TranscribeClient>;
+    } as unknown as Mocked<TranscribeClient>;
 
     mockVoiceDomainService = {
       parseVoiceCommand: vi.fn(),
@@ -28,7 +29,7 @@ describe("ProcessVoiceCommandUseCase", () => {
       normalizeVoiceInput: vi.fn(),
       getAllPatterns: vi.fn(),
       getPatternKeywords: vi.fn(),
-    } as vi.Mocked<VoiceDomainService>;
+    } as unknown as Mocked<VoiceDomainService>;
 
     useCase = new ProcessVoiceCommandUseCase(
       mockTranscribeClient,

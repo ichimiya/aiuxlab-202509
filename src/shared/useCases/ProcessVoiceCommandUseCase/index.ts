@@ -63,28 +63,30 @@ export class ProcessVoiceCommandUseCase {
    */
   async processRealTimeAudio(callback: RealTimeVoiceCallback): Promise<void> {
     try {
-      // TranscribeClientのコールバック関数を設定
-      this.transcribeClient.onTranscriptReceived = (
-        transcribeResponse: TranscribeResponse,
-      ) => {
-        // TranscribeResponseをVoiceCommandResultに変換
-        const result = this.processTranscribeResponse(transcribeResponse);
-
-        // コールバック関数を呼び出して結果を通知
-        callback(result);
-      };
-
-      this.transcribeClient.onError = (error) => {
-        console.error("Voice recognition error:", error);
-        // エラー時もコールバックで通知（信頼度0で）
-        callback({
-          originalText: "",
-          pattern: null,
-          confidence: 0,
-          alternatives: [],
-          isPartial: false,
-        });
-      };
+      // TranscribeClientのイベントハンドラーを設定（新API）
+      this.transcribeClient.setEventHandlers({
+        onTranscriptionResult: (text: string, isFinal: boolean) => {
+          const transcribeResponse: TranscribeResponse = {
+            transcript: text,
+            confidence: 0.9, // RT出力は信頼度がないため暫定値
+            isPartial: !isFinal,
+            alternatives: [],
+          };
+          const result = this.processTranscribeResponse(transcribeResponse);
+          callback(result);
+        },
+        onError: (error) => {
+          console.error("Voice recognition error:", error);
+          callback({
+            originalText: "",
+            pattern: null,
+            confidence: 0,
+            alternatives: [],
+            isPartial: false,
+          });
+        },
+        onConnectionStatusChange: () => void 0,
+      });
 
       // リアルタイム転写を開始
       await this.transcribeClient.startRealTimeTranscription();
