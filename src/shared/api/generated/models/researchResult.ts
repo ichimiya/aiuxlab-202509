@@ -6,15 +6,18 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { VoicePattern } from "./voicePattern";
+import type { ProcessedCitation } from "./processedCitation";
 
 export interface ResearchResult {
   /** 結果ID */
   id: string;
-  /** リサーチ結果内容 */
+  /** HTML化されたリサーチ結果内容 */
   content: string;
   /** 情報源 */
   source: string;
   /** 関連度スコア */
   relevanceScore?: number;
   voicePattern?: VoicePattern;
+  /** 構造化された引用情報 */
+  processedCitations?: ProcessedCitation[];
 }

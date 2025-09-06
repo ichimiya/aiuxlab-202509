@@ -7,6 +7,7 @@
  */
 import type { ResearchStatus } from "./researchStatus";
 import type { ResearchResult } from "./researchResult";
+import type { SearchResult } from "./searchResult";
 
 export interface Research {
   /** リサーチID */
@@ -17,6 +18,10 @@ export interface Research {
   status: ResearchStatus;
   /** リサーチ結果 */
   results?: ResearchResult[];
+  /** Perplexity検索結果 */
+  searchResults?: SearchResult[];
+  /** 引用URL一覧 */
+  citations?: string[];
   /** 作成日時 */
   createdAt: string;
   /** 更新日時 */

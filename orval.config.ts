@@ -1,12 +1,15 @@
 import { defineConfig } from "orval";
 
+const input = "./src/shared/api/schemas/openapi.yaml";
+const targetBaseDir = "./src/shared/api/generated";
+
 export default defineConfig({
   api: {
-    input: "./src/shared/api/schemas/openapi.yaml",
+    input,
     output: {
       target: "./src/shared/api/generated/api.ts",
       client: "react-query",
-      mode: "single",
+      mode: "split",
       schemas: "./src/shared/api/generated/models",
       mock: false,
       clean: true,
@@ -22,7 +25,19 @@ export default defineConfig({
       },
     },
     hooks: {
-      afterAllFilesWrite: "prettier --write",
+      afterAllFilesWrite: "npx prettier --write",
+    },
+  },
+  zod: {
+    input,
+    output: {
+      workspace: targetBaseDir,
+      target: "zod/index.ts",
+      client: "zod",
+      indexFiles: false,
+    },
+    hooks: {
+      afterAllFilesWrite: "npx prettier --write",
     },
   },
 });

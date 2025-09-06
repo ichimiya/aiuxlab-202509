@@ -5,176 +5,22 @@
  * AI時代の新しいリサーチ体験を探索するPOC API
  * OpenAPI spec version: 0.1.0
  */
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation } from "@tanstack/react-query";
 import type {
-  DataTag,
-  DefinedInitialDataOptions,
-  DefinedUseQueryResult,
   MutationFunction,
   QueryClient,
-  QueryFunction,
-  QueryKey,
-  UndefinedInitialDataOptions,
   UseMutationOptions,
   UseMutationResult,
-  UseQueryOptions,
-  UseQueryResult,
 } from "@tanstack/react-query";
 
-import type { CreateResearchRequest, Research } from "./models";
+import type { CreateResearchRequest, Error, Research } from "./models";
 
 import { customInstance } from "../mutator";
-/**
- * @summary リサーチ履歴を取得
- */
-export const getResearchHistory = (signal?: AbortSignal) => {
-  return customInstance<Research[]>({
-    url: `/research`,
-    method: "GET",
-    signal,
-  });
-};
-
-export const getGetResearchHistoryQueryKey = () => {
-  return [`/research`] as const;
-};
-
-export const getGetResearchHistoryQueryOptions = <
-  TData = Awaited<ReturnType<typeof getResearchHistory>>,
-  TError = unknown,
->(options?: {
-  query?: Partial<
-    UseQueryOptions<
-      Awaited<ReturnType<typeof getResearchHistory>>,
-      TError,
-      TData
-    >
-  >;
-}) => {
-  const { query: queryOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getGetResearchHistoryQueryKey();
-
-  const queryFn: QueryFunction<
-    Awaited<ReturnType<typeof getResearchHistory>>
-  > = ({ signal }) => getResearchHistory(signal);
-
-  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
-    Awaited<ReturnType<typeof getResearchHistory>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type GetResearchHistoryQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getResearchHistory>>
->;
-export type GetResearchHistoryQueryError = unknown;
-
-export function useGetResearchHistory<
-  TData = Awaited<ReturnType<typeof getResearchHistory>>,
-  TError = unknown,
->(
-  options: {
-    query: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getResearchHistory>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getResearchHistory>>,
-          TError,
-          Awaited<ReturnType<typeof getResearchHistory>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useGetResearchHistory<
-  TData = Awaited<ReturnType<typeof getResearchHistory>>,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getResearchHistory>>,
-        TError,
-        TData
-      >
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getResearchHistory>>,
-          TError,
-          Awaited<ReturnType<typeof getResearchHistory>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useGetResearchHistory<
-  TData = Awaited<ReturnType<typeof getResearchHistory>>,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getResearchHistory>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-/**
- * @summary リサーチ履歴を取得
- */
-
-export function useGetResearchHistory<
-  TData = Awaited<ReturnType<typeof getResearchHistory>>,
-  TError = unknown,
->(
-  options?: {
-    query?: Partial<
-      UseQueryOptions<
-        Awaited<ReturnType<typeof getResearchHistory>>,
-        TError,
-        TData
-      >
-    >;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
-  const queryOptions = getGetResearchHistoryQueryOptions(options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey;
-
-  return query;
-}
 
 /**
- * @summary 新しいリサーチを開始
+ * @summary リサーチを実行
  */
-export const createResearch = (
+export const executeResearch = (
   createResearchRequest: CreateResearchRequest,
   signal?: AbortSignal,
 ) => {
@@ -187,23 +33,23 @@ export const createResearch = (
   });
 };
 
-export const getCreateResearchMutationOptions = <
-  TError = unknown,
+export const getExecuteResearchMutationOptions = <
+  TError = Error | Error,
   TContext = unknown,
 >(options?: {
   mutation?: UseMutationOptions<
-    Awaited<ReturnType<typeof createResearch>>,
+    Awaited<ReturnType<typeof executeResearch>>,
     TError,
     { data: CreateResearchRequest },
     TContext
   >;
 }): UseMutationOptions<
-  Awaited<ReturnType<typeof createResearch>>,
+  Awaited<ReturnType<typeof executeResearch>>,
   TError,
   { data: CreateResearchRequest },
   TContext
 > => {
-  const mutationKey = ["createResearch"];
+  const mutationKey = ["executeResearch"];
   const { mutation: mutationOptions } = options
     ? options.mutation &&
       "mutationKey" in options.mutation &&
@@ -213,30 +59,30 @@ export const getCreateResearchMutationOptions = <
     : { mutation: { mutationKey } };
 
   const mutationFn: MutationFunction<
-    Awaited<ReturnType<typeof createResearch>>,
+    Awaited<ReturnType<typeof executeResearch>>,
     { data: CreateResearchRequest }
   > = (props) => {
     const { data } = props ?? {};
 
-    return createResearch(data);
+    return executeResearch(data);
   };
 
   return { mutationFn, ...mutationOptions };
 };
 
-export type CreateResearchMutationResult = NonNullable<
-  Awaited<ReturnType<typeof createResearch>>
+export type ExecuteResearchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof executeResearch>>
 >;
-export type CreateResearchMutationBody = CreateResearchRequest;
-export type CreateResearchMutationError = unknown;
+export type ExecuteResearchMutationBody = CreateResearchRequest;
+export type ExecuteResearchMutationError = Error | Error;
 
 /**
- * @summary 新しいリサーチを開始
+ * @summary リサーチを実行
  */
-export const useCreateResearch = <TError = unknown, TContext = unknown>(
+export const useExecuteResearch = <TError = Error | Error, TContext = unknown>(
   options?: {
     mutation?: UseMutationOptions<
-      Awaited<ReturnType<typeof createResearch>>,
+      Awaited<ReturnType<typeof executeResearch>>,
       TError,
       { data: CreateResearchRequest },
       TContext
@@ -244,151 +90,12 @@ export const useCreateResearch = <TError = unknown, TContext = unknown>(
   },
   queryClient?: QueryClient,
 ): UseMutationResult<
-  Awaited<ReturnType<typeof createResearch>>,
+  Awaited<ReturnType<typeof executeResearch>>,
   TError,
   { data: CreateResearchRequest },
   TContext
 > => {
-  const mutationOptions = getCreateResearchMutationOptions(options);
+  const mutationOptions = getExecuteResearchMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
-
-/**
- * @summary 特定のリサーチを取得
- */
-export const getResearch = (id: string, signal?: AbortSignal) => {
-  return customInstance<Research>({
-    url: `/research/${id}`,
-    method: "GET",
-    signal,
-  });
-};
-
-export const getGetResearchQueryKey = (id?: string) => {
-  return [`/research/${id}`] as const;
-};
-
-export const getGetResearchQueryOptions = <
-  TData = Awaited<ReturnType<typeof getResearch>>,
-  TError = unknown,
->(
-  id: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getResearch>>, TError, TData>
-    >;
-  },
-) => {
-  const { query: queryOptions } = options ?? {};
-
-  const queryKey = queryOptions?.queryKey ?? getGetResearchQueryKey(id);
-
-  const queryFn: QueryFunction<Awaited<ReturnType<typeof getResearch>>> = ({
-    signal,
-  }) => getResearch(id, signal);
-
-  return {
-    queryKey,
-    queryFn,
-    enabled: !!id,
-    ...queryOptions,
-  } as UseQueryOptions<
-    Awaited<ReturnType<typeof getResearch>>,
-    TError,
-    TData
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-};
-
-export type GetResearchQueryResult = NonNullable<
-  Awaited<ReturnType<typeof getResearch>>
->;
-export type GetResearchQueryError = unknown;
-
-export function useGetResearch<
-  TData = Awaited<ReturnType<typeof getResearch>>,
-  TError = unknown,
->(
-  id: string,
-  options: {
-    query: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getResearch>>, TError, TData>
-    > &
-      Pick<
-        DefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getResearch>>,
-          TError,
-          Awaited<ReturnType<typeof getResearch>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient,
-): DefinedUseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useGetResearch<
-  TData = Awaited<ReturnType<typeof getResearch>>,
-  TError = unknown,
->(
-  id: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getResearch>>, TError, TData>
-    > &
-      Pick<
-        UndefinedInitialDataOptions<
-          Awaited<ReturnType<typeof getResearch>>,
-          TError,
-          Awaited<ReturnType<typeof getResearch>>
-        >,
-        "initialData"
-      >;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-export function useGetResearch<
-  TData = Awaited<ReturnType<typeof getResearch>>,
-  TError = unknown,
->(
-  id: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getResearch>>, TError, TData>
-    >;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-};
-/**
- * @summary 特定のリサーチを取得
- */
-
-export function useGetResearch<
-  TData = Awaited<ReturnType<typeof getResearch>>,
-  TError = unknown,
->(
-  id: string,
-  options?: {
-    query?: Partial<
-      UseQueryOptions<Awaited<ReturnType<typeof getResearch>>, TError, TData>
-    >;
-  },
-  queryClient?: QueryClient,
-): UseQueryResult<TData, TError> & {
-  queryKey: DataTag<QueryKey, TData, TError>;
-} {
-  const queryOptions = getGetResearchQueryOptions(id, options);
-
-  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
-    TData,
-    TError
-  > & { queryKey: DataTag<QueryKey, TData, TError> };
-
-  query.queryKey = queryOptions.queryKey;
-
-  return query;
-}

@@ -2,18 +2,25 @@
 
 import { useState } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
-import {
-  useGetResearchHistory,
-  useCreateResearch,
-} from "@/shared/api/generated/api";
+import { useExecuteResearch } from "@/shared/api/generated/api";
+import type { Research } from "@/shared/api/generated/models";
+import { ResearchResultDisplay } from "./ResearchResultDisplay";
 
 export function ResearchInterface() {
   const [query, setQuery] = useState("");
+  const [researchResult, setResearchResult] = useState<Research | null>(null);
   const { selectedText, voiceCommand, isListening } = useResearchStore();
 
-  // API hooks testing
-  const { data: researchHistory, isLoading, error } = useGetResearchHistory();
-  const createResearchMutation = useCreateResearch();
+  const executeResearchMutation = useExecuteResearch({
+    mutation: {
+      onSuccess: (response) => {
+        setResearchResult(response);
+      },
+      onError: (error) => {
+        console.error("Research failed:", error);
+      },
+    },
+  });
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -71,48 +78,26 @@ export function ResearchInterface() {
           </div>
         )}
 
-        {/* SSR & API Test Status */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">SSR + React Query統合状況:</h3>
-          {isLoading && (
-            <p className="text-sm text-yellow-600">データ読み込み中...</p>
-          )}
-          {!!error && (
-            <div className="text-sm text-red-600">
-              エラー: API接続に失敗 (期待される動作)
-            </div>
-          )}
-          {researchHistory && (
-            <div className="text-sm text-green-600">
-              <p>✅ SSR prefetch → Client hydration成功</p>
-              <p>📊 データ取得成功: {researchHistory.length}件</p>
-            </div>
-          )}
-          <p className="text-sm text-gray-500">
-            ✅ Server-side prefetch実装
-            <br />
-            ✅ HydrationBoundary統合
-            <br />
-            ✅ TypeScript型定義生成完了
-            <br />
-            ✅ React Query dehydrate/hydrate
-            <br />✅ Axios interceptor統合完了
-          </p>
-        </div>
+        {/* Research Results */}
+        <ResearchResultDisplay
+          research={researchResult}
+          isLoading={executeResearchMutation.isPending}
+          error={executeResearchMutation.error}
+        />
 
         {/* Action Buttons */}
         <div className="flex space-x-4 justify-center">
           <button
             type="button"
             onClick={() => {
-              createResearchMutation.mutate({
+              executeResearchMutation.mutate({
                 data: { query, selectedText, voiceCommand },
               });
             }}
-            disabled={!query || createResearchMutation.isPending}
+            disabled={!query || executeResearchMutation.isPending}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            {createResearchMutation.isPending
+            {executeResearchMutation.isPending
               ? "リサーチ中..."
               : "リサーチ開始"}
           </button>
