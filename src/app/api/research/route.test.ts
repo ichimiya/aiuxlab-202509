@@ -2,10 +2,10 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NextRequest } from "next/server";
 import { POST } from "./route";
 
-// ResearchServiceをモック
-vi.mock("@/shared/api/external/perplexity", () => ({
-  ResearchService: vi.fn().mockImplementation(() => ({
-    executeResearch: vi.fn().mockResolvedValue({
+// UseCaseをモック
+vi.mock("@/shared/useCases", () => ({
+  createExecuteResearchUseCase: vi.fn(() => ({
+    execute: vi.fn().mockResolvedValue({
       id: "research-123",
       query: "test query",
       status: "completed",
@@ -15,6 +15,7 @@ vi.mock("@/shared/api/external/perplexity", () => ({
           content: "Test result content",
           source: "Perplexity AI",
           relevanceScore: 0.8,
+          citations: [],
         },
       ],
       createdAt: new Date().toISOString(),
