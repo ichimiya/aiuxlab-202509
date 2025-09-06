@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { ResearchService } from "@/shared/api/external/perplexity";
+import { BedrockContentProcessor } from "@/shared/api/external/bedrock/ContentProcessor";
 import { CreateResearchRequest } from "@/shared/api/generated/models";
 import { executeResearchBody } from "@/shared/api/generated/zod";
 
@@ -45,15 +46,58 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // リサーチサービスの実行
+    // 1. リサーチサービスの実行（基本的なHTML変換のみ）
     const researchService = new ResearchService(apiKey);
-    const result = await researchService.executeResearch({
+    const initialResult = await researchService.executeResearch({
       query: validation.data.query,
       selectedText: validation.data.selectedText,
       voiceCommand: validation.data.voiceCommand,
     });
 
-    return NextResponse.json(result, { status: 200 });
+    // 2. BedrockでHTML変換を実行（各results.contentに対して）
+    try {
+      const bedrockProcessor = new BedrockContentProcessor();
+
+      const enhancedResults = await Promise.all(
+        (initialResult.results || []).map(async (result) => {
+          try {
+            // BedrockでHTML変換を実行
+            const enhancedContent = await bedrockProcessor.processContent(
+              result.content,
+              initialResult.citations || [],
+              initialResult.searchResults || [],
+            );
+
+            return {
+              ...result,
+              content: enhancedContent.htmlContent,
+              processedCitations: enhancedContent.processedCitations,
+            };
+          } catch (error) {
+            console.warn(
+              `Bedrock processing failed for result ${result.id}:`,
+              error,
+            );
+            // フォールバック: 元のコンテンツを使用
+            return result;
+          }
+        }),
+      );
+
+      const finalResult = {
+        ...initialResult,
+        results: enhancedResults,
+      };
+
+      return NextResponse.json(finalResult, { status: 200 });
+    } catch (error) {
+      console.warn(
+        "Bedrock enhancement failed, returning basic result:",
+        error,
+      );
+      // フォールバック: 基本的なHTML変換結果を返す
+      return NextResponse.json(initialResult, { status: 200 });
+    }
   } catch (error) {
     console.error("Research API error:", error);
 

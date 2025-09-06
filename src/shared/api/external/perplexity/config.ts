@@ -10,7 +10,7 @@
  */
 const DEFAULT_API_CONFIG = {
   BASE_URL: "https://api.perplexity.ai",
-  MODEL: "sonar-pro",
+  MODEL: "sonar",
   TIMEOUT: 30000,
   MAX_TOKENS: 2000,
   TEMPERATURE: 0.2,

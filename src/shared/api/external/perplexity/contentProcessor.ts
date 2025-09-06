@@ -134,7 +134,7 @@ export class ContentProcessor {
       const citation = citationMap.get(parseInt(number));
       if (!citation) return match;
 
-      return `<a href="#${citation.id}" class="citation-link text-blue-600 hover:text-blue-800 font-medium" data-citation-id="${citation.id}">${match}</a>`;
+      return `<a href="#${citation.id}" data-citation-id="${citation.id}">${match}</a>`;
     });
   }
 

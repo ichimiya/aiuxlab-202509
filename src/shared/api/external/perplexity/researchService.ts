@@ -143,7 +143,7 @@ export class ResearchService {
       rawContent,
     );
 
-    // Markdownコンテンツを構造化されたHTMLに変換
+    // 基本的なMarkdown→HTML変換のみ実行（Bedrockは外部で処理）
     const processedContent = ContentProcessor.processContent(
       rawContent,
       response.citations || [],
@@ -159,7 +159,7 @@ export class ResearchService {
       source: primarySource,
       relevanceScore,
       voicePattern: this.mapVoiceCommand(context.voiceCommand),
-      // 構造化された引用情報を追加（後で型定義に含める）
+      // 構造化された引用情報を追加
       processedCitations: processedContent.processedCitations,
     };
   }
