@@ -46,6 +46,9 @@ importers:
       three:
         specifier: ^0.180.0
         version: 0.180.0
+      use-debounce:
+        specifier: ^10.0.0
+        version: 10.0.6(react@19.1.0)
       zod:
         specifier: ^4.1.5
         version: 4.1.5
@@ -6137,6 +6140,15 @@ packages:
         integrity: sha512-HXgFDgDommxn5/bIv0cnQZsPhHDA90NPHD6+c/v21U5+Sx5hoP8+dP9IZXBU1gIfvdRfhG8cel9QNPeionfcCQ==,
       }
 
+  use-debounce@10.0.6:
+    resolution:
+      {
+        integrity: sha512-C5OtPyhAZgVoteO9heXMTdW7v/IbFI+8bSVKYCJrSmiWWCLsbUxiBSp4t9v0hNBTGY97bT72ydDIDyGSFWfwXg==,
+      }
+    engines: { node: ">= 16.0.0" }
+    peerDependencies:
+      react: "*"
+
   use-sync-external-store@1.5.0:
     resolution:
       {
@@ -10724,6 +10736,10 @@ snapshots:
       punycode: 2.3.1
 
   urijs@1.19.11: {}
+
+  use-debounce@10.0.6(react@19.1.0):
+    dependencies:
+      react: 19.1.0
 
   use-sync-external-store@1.5.0(react@19.1.0):
     dependencies:
