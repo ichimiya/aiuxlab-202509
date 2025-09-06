@@ -1,5 +1,9 @@
 import OpenAI from "openai";
-import type { PerplexityConfig, ResearchContext } from "./types";
+import type {
+  PerplexityConfig,
+  ResearchContext,
+  PerplexityResponse,
+} from "./types";
 import { ErrorHandler } from "./errorHandler";
 import { PerplexityConfig as Config } from "./config";
 import { ValidationUtils } from "./utils";
@@ -27,7 +31,7 @@ export class PerplexityClient {
   /**
    * リサーチクエリを実行
    */
-  async search(context: ResearchContext): Promise<OpenAI.Chat.ChatCompletion> {
+  async search(context: ResearchContext): Promise<PerplexityResponse> {
     if (!ValidationUtils.validateQuery(context.query)) {
       throw ErrorHandler.handleValidationError(
         Config.ERROR_MESSAGES.QUERY_REQUIRED,
@@ -50,7 +54,7 @@ export class PerplexityClient {
         stream: false;
       });
 
-      return response as OpenAI.Chat.ChatCompletion;
+      return response as PerplexityResponse;
     } catch (error) {
       throw ErrorHandler.handleError(error);
     }

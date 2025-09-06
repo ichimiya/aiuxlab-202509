@@ -100,7 +100,13 @@ export class ResearchService {
     timestamp: string,
   ): Research {
     const results = response.choices.map((choice, index) =>
-      this.transformToResearchResult(context, choice, index, response.id),
+      this.transformToResearchResult(
+        context,
+        choice,
+        index,
+        response.id,
+        response,
+      ),
     );
 
     return {
@@ -121,6 +127,7 @@ export class ResearchService {
     choice: PerplexityResponse["choices"][0],
     index: number,
     responseId: string,
+    response: PerplexityResponse,
   ): ResearchResult {
     const content = choice.message.content || "";
     const relevanceScore = RelevanceCalculator.calculate(
@@ -128,13 +135,45 @@ export class ResearchService {
       content,
     );
 
+    // search_resultsから実際のソース情報を抽出
+    const primarySource = this.extractPrimarySource(response, index);
+
     return {
       id: IdGenerator.generateResultId(responseId, index),
       content: content,
-      source: PerplexityConfig.RESEARCH_CONSTANTS.SOURCE_NAME,
+      source: primarySource,
       relevanceScore,
       voicePattern: this.mapVoiceCommand(context.voiceCommand),
     };
+  }
+
+  /**
+   * search_resultsから主要なソース情報を抽出
+   */
+  private extractPrimarySource(
+    response: PerplexityResponse,
+    index: number,
+  ): string {
+    // search_resultsが利用可能な場合、最も関連性の高いソースを使用
+    if (response.search_results && response.search_results.length > 0) {
+      // インデックスに対応するソースがあれば使用、なければ最初のソース
+      const searchResult =
+        response.search_results[index] || response.search_results[0];
+      return `${searchResult.title} (${new URL(searchResult.url).hostname})`;
+    }
+
+    // citationsが利用可能な場合
+    if (response.citations && response.citations.length > 0) {
+      const citation = response.citations[index] || response.citations[0];
+      try {
+        return new URL(citation).hostname;
+      } catch {
+        return citation;
+      }
+    }
+
+    // フォールバック
+    return PerplexityConfig.RESEARCH_CONSTANTS.SOURCE_NAME;
   }
 
   /**

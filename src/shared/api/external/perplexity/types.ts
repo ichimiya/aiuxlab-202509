@@ -5,8 +5,28 @@
 
 import type OpenAI from "openai";
 
+/**
+ * Perplexity API検索結果の詳細情報
+ */
+export interface PerplexitySearchResult {
+  title: string;
+  url: string;
+  date: string;
+  last_updated: string;
+  snippet: string;
+}
+
+/**
+ * Perplexity API拡張レスポンス型
+ * OpenAIのChatCompletionにPerplexity固有のフィールドを追加
+ */
+export interface PerplexityResponse extends OpenAI.Chat.ChatCompletion {
+  citations?: string[];
+  search_results?: PerplexitySearchResult[];
+  related_questions?: string[];
+}
+
 // OpenAI SDKの型を再エクスポート
-export type PerplexityResponse = OpenAI.Chat.ChatCompletion;
 export type PerplexityMessage = OpenAI.Chat.ChatCompletionMessageParam;
 export type PerplexityChoice = OpenAI.Chat.ChatCompletion.Choice;
 export type PerplexityUsage = {
