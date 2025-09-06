@@ -44,7 +44,9 @@ export interface IContentProcessingRepository {
   processContent(request: ContentProcessingRequest): Promise<string>;
 }
 
-export class BedrockClient implements IContentProcessingRepository {
+export class BedrockContentProcessingClient
+  implements IContentProcessingRepository
+{
   private readonly client: BedrockRuntimeClient;
   private readonly modelId: string;
 
@@ -137,3 +139,6 @@ ${request.markdownContent}
 }`;
   }
 }
+
+// 後方互換のためのエイリアス
+export { BedrockContentProcessingClient as BedrockClient };
