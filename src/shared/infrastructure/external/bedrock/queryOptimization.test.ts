@@ -79,4 +79,31 @@ describe("BedrockQueryOptimizationClient", () => {
       client.optimizeQuery({ originalQuery: "AIの倫理" }),
     ).rejects.toThrow(/Invalid optimization response/i);
   });
+
+  it("プロンプトに厳密JSON出力指示とセクションが含まれる", async () => {
+    const client = new BedrockQueryOptimizationClient();
+    const payload = {
+      optimizedQuery: "test",
+      addedAspects: [],
+      improvementReason: "",
+      confidence: 0.5,
+      suggestedFollowups: [],
+    };
+    const body = new TextEncoder().encode(
+      JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
+    );
+    sendMock.mockResolvedValueOnce({ body });
+
+    await client.optimizeQuery({ originalQuery: "AIって危険？" });
+    const last = invokedInputs.at(-1);
+    const sent = JSON.parse(last.body);
+    const content: string = sent.messages?.[0]?.content as string;
+
+    expect(content).toContain("### OUTPUT_JSON_ONLY");
+    expect(content).toContain("optimizedQuery");
+    expect(content).toContain("addedAspects");
+    expect(content).toContain("suggestedFollowups");
+    expect(content).toContain("### CONTEXT");
+    expect(content).toContain("### PRINCIPLES");
+  });
 });

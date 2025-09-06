@@ -93,6 +93,37 @@ export class BedrockQueryOptimizationClient {
   private buildPrompt(req: QueryOptimizationRequest): string {
     const contextSummary =
       QueryOptimizationDomainService.buildContextSummary(req);
-    return `あなたは世界最高レベルのリサーチクエリ最適化専門家です。\nユーザーの曖昧・不完全な質問を効果的なリサーチクエリに変換してください。\n\n【文脈要約】\n${contextSummary}\n\n【最適化対象クエリ】\n${req.originalQuery}\n\n【最適化原則】\n1. 具体性と明確性の向上\n2. 多角的な調査観点の追加\n3. 検索効率の最適化\n4. ユーザーの潜在的な疑問の先取り\n\n【出力形式(JSON)】\n{\n  "optimizedQuery": string,\n  "addedAspects": string[],\n  "improvementReason": string,\n  "confidence": number,\n  "suggestedFollowups": string[]\n}\n\n必ず厳密なJSONのみを返してください。`;
+    return [
+      "### ROLE",
+      "あなたは世界最高レベルのリサーチクエリ最適化専門家です。ユーザーの曖昧・不完全な質問を、効果的で検索効率の高いクエリへ変換します。",
+      "",
+      "### CONTEXT",
+      contextSummary || "(なし)",
+      "",
+      "### INPUT_QUERY",
+      req.originalQuery,
+      "",
+      "### PRINCIPLES",
+      "1. 具体性と明確性を高める",
+      "2. 多角的な調査観点（Who/What/When/Where/Why/How、比較・トレンド・データ・実務観点）を適切に追加",
+      "3. 検索効率（固有名詞・時制・条件・評価指標）を最適化",
+      "4. ユーザーの潜在的な意図を先取りしつつ過剰拡張は避ける",
+      "5. 出力言語は入力と同じ言語に合わせる",
+      "6. 不確実・曖昧表現は具体語に置換（例: ‘最近’→‘2023–2025’など適切な範囲）",
+      "",
+      "### OUTPUT_JSON_SCHEMA",
+      "{",
+      '  "optimizedQuery": string,',
+      '  "addedAspects": string[],',
+      '  "improvementReason": string,',
+      '  "confidence": number,',
+      '  "suggestedFollowups": string[]',
+      "}",
+      "",
+      "### OUTPUT_JSON_ONLY",
+      "- 厳密なJSONのみを1つ返す（プレーンテキスト・注釈・コードブロック・説明は一切禁止）",
+      "- keyは上記5つのみ。順序は任意。値は空文字でも可。",
+      "- confidenceは0.0〜1.0の小数。",
+    ].join("\n");
   }
 }
