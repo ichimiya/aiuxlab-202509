@@ -1,8 +1,6 @@
 /**
  * Bedrock API Infrastructure - Content Processing
- * Markdown→セマンティックHTML変換などのコンテンツ処理リクエストを担当
  */
-
 import {
   BedrockRuntimeClient,
   InvokeModelCommand,
@@ -140,5 +138,5 @@ ${request.markdownContent}
   }
 }
 
-// 後方互換のためのエイリアス
+// 互換エイリアス（旧名）
 export { BedrockContentProcessingClient as BedrockClient };

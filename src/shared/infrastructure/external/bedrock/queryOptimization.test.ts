@@ -20,7 +20,7 @@ vi.mock("@aws-sdk/client-bedrock-runtime", () => {
   return { BedrockRuntimeClient, InvokeModelCommand };
 });
 
-import { BedrockQueryOptimizationClient } from "./queryOptimization";
+import { BedrockQueryOptimizationClient } from "./QueryOptimization";
 
 describe("BedrockQueryOptimizationClient", () => {
   beforeEach(() => {

@@ -2,7 +2,7 @@ import { describe, it, expect } from "vitest";
 
 describe("bedrock/contentProcessing module", () => {
   it("BedrockContentProcessingClient と互換エイリアス(BedrockClient)をエクスポートする", async () => {
-    const mod = (await import("./contentProcessing")) as unknown as {
+    const mod = (await import("./ContentProcessing")) as unknown as {
       BedrockClient: unknown;
       BedrockContentProcessingClient: unknown;
       BedrockAPIError: unknown;
