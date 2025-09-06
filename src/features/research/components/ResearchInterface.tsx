@@ -2,18 +2,24 @@
 
 import { useState } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
-import {
-  useGetResearchHistory,
-  useCreateResearch,
-} from "@/shared/api/generated/api";
+import { useExecuteResearch } from "@/shared/api/generated/api";
+import type { Research } from "@/shared/api/generated/models";
 
 export function ResearchInterface() {
   const [query, setQuery] = useState("");
+  const [researchResult, setResearchResult] = useState<Research | null>(null);
   const { selectedText, voiceCommand, isListening } = useResearchStore();
 
-  // API hooks testing
-  const { data: researchHistory, isLoading, error } = useGetResearchHistory();
-  const createResearchMutation = useCreateResearch();
+  const executeResearchMutation = useExecuteResearch({
+    mutation: {
+      onSuccess: (response) => {
+        setResearchResult(response);
+      },
+      onError: (error) => {
+        console.error("Research failed:", error);
+      },
+    },
+  });
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -71,48 +77,96 @@ export function ResearchInterface() {
           </div>
         )}
 
-        {/* SSR & API Test Status */}
-        <div className="space-y-2">
-          <h3 className="text-sm font-medium">SSR + React Query統合状況:</h3>
-          {isLoading && (
-            <p className="text-sm text-yellow-600">データ読み込み中...</p>
-          )}
-          {!!error && (
-            <div className="text-sm text-red-600">
-              エラー: API接続に失敗 (期待される動作)
+        {/* Research Results */}
+        {researchResult && (
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold">リサーチ結果</h3>
+            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
+              <div className="space-y-3">
+                <div>
+                  <span className="text-sm font-medium text-gray-500">ID:</span>
+                  <p className="text-sm">{researchResult.id}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">
+                    クエリ:
+                  </span>
+                  <p className="text-sm">{researchResult.query}</p>
+                </div>
+                <div>
+                  <span className="text-sm font-medium text-gray-500">
+                    ステータス:
+                  </span>
+                  <span
+                    className={`text-sm px-2 py-1 rounded ${
+                      researchResult.status === "completed"
+                        ? "bg-green-100 text-green-800"
+                        : researchResult.status === "failed"
+                          ? "bg-red-100 text-red-800"
+                          : "bg-yellow-100 text-yellow-800"
+                    }`}
+                  >
+                    {researchResult.status}
+                  </span>
+                </div>
+                {researchResult.results &&
+                  researchResult.results.length > 0 && (
+                    <div>
+                      <span className="text-sm font-medium text-gray-500">
+                        結果:
+                      </span>
+                      <div className="space-y-2 mt-2">
+                        {researchResult.results.map((result) => (
+                          <div
+                            key={result.id}
+                            className="p-3 bg-white dark:bg-gray-700 rounded border"
+                          >
+                            <p className="text-sm mb-2">{result.content}</p>
+                            <div className="flex justify-between items-center text-xs text-gray-500">
+                              <span>出典: {result.source}</span>
+                              {result.relevanceScore && (
+                                <span>
+                                  関連度:{" "}
+                                  {(result.relevanceScore * 100).toFixed(1)}%
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+              </div>
             </div>
-          )}
-          {researchHistory && (
-            <div className="text-sm text-green-600">
-              <p>✅ SSR prefetch → Client hydration成功</p>
-              <p>📊 データ取得成功: {researchHistory.length}件</p>
-            </div>
-          )}
-          <p className="text-sm text-gray-500">
-            ✅ Server-side prefetch実装
-            <br />
-            ✅ HydrationBoundary統合
-            <br />
-            ✅ TypeScript型定義生成完了
-            <br />
-            ✅ React Query dehydrate/hydrate
-            <br />✅ Axios interceptor統合完了
-          </p>
-        </div>
+          </div>
+        )}
+
+        {/* Error Display */}
+        {executeResearchMutation.error && (
+          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
+            <h3 className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
+              エラーが発生しました
+            </h3>
+            <p className="text-sm text-red-700 dark:text-red-300">
+              {executeResearchMutation.error?.message ||
+                "不明なエラーが発生しました"}
+            </p>
+          </div>
+        )}
 
         {/* Action Buttons */}
         <div className="flex space-x-4 justify-center">
           <button
             type="button"
             onClick={() => {
-              createResearchMutation.mutate({
+              executeResearchMutation.mutate({
                 data: { query, selectedText, voiceCommand },
               });
             }}
-            disabled={!query || createResearchMutation.isPending}
+            disabled={!query || executeResearchMutation.isPending}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            {createResearchMutation.isPending
+            {executeResearchMutation.isPending
               ? "リサーチ中..."
               : "リサーチ開始"}
           </button>

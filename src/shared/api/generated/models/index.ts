@@ -7,6 +7,7 @@
  */
 
 export * from "./createResearchRequest";
+export * from "./error";
 export * from "./research";
 export * from "./researchResult";
 export * from "./researchStatus";

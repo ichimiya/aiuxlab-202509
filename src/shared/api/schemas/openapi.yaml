@@ -10,22 +10,9 @@ servers:
 
 paths:
   /research:
-    get:
-      summary: リサーチ履歴を取得
-      operationId: getResearchHistory
-      responses:
-        "200":
-          description: Success
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/Research"
-
     post:
-      summary: 新しいリサーチを開始
-      operationId: createResearch
+      summary: リサーチを実行
+      operationId: executeResearch
       requestBody:
         required: true
         content:
@@ -33,30 +20,24 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateResearchRequest"
       responses:
-        "201":
-          description: Created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Research"
-
-  /research/{id}:
-    get:
-      summary: 特定のリサーチを取得
-      operationId: getResearch
-      parameters:
-        - name: id
-          in: path
-          required: true
-          schema:
-            type: string
-      responses:
         "200":
-          description: Success
+          description: リサーチ完了
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/Research"
+        "400":
+          description: 無効なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 
 components:
   schemas:
@@ -76,7 +57,7 @@ components:
           description: 初期クエリ
         status:
           type: string
-          enum: [pending, processing, completed, failed]
+          enum: [pending, completed, failed]
           description: リサーチ状態
         results:
           type: array
@@ -135,6 +116,7 @@ components:
       properties:
         query:
           type: string
+          minLength: 1
           description: リサーチクエリ
         selectedText:
           type: string
@@ -142,3 +124,15 @@ components:
         voiceCommand:
           type: string
           description: 音声コマンド
+
+    Error:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: エラーメッセージ
+        code:
+          type: string
+          description: エラーコード

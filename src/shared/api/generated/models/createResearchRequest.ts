@@ -7,7 +7,10 @@
  */
 
 export interface CreateResearchRequest {
-  /** リサーチクエリ */
+  /**
+   * リサーチクエリ
+   * @minLength 1
+   */
   query: string;
   /** 選択されたテキスト */
   selectedText?: string;

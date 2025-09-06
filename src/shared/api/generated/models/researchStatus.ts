@@ -14,7 +14,6 @@ export type ResearchStatus =
 
 export const ResearchStatus = {
   pending: "pending",
-  processing: "processing",
   completed: "completed",
   failed: "failed",
 } as const;
