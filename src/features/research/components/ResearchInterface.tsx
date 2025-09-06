@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
 import { useExecuteResearch } from "@/shared/api/generated/api";
 import type { Research } from "@/shared/api/generated/models";
+import { ResearchResultDisplay } from "./ResearchResultDisplay";
 
 export function ResearchInterface() {
   const [query, setQuery] = useState("");
@@ -78,81 +79,11 @@ export function ResearchInterface() {
         )}
 
         {/* Research Results */}
-        {researchResult && (
-          <div className="space-y-4">
-            <h3 className="text-lg font-semibold">リサーチ結果</h3>
-            <div className="p-4 bg-gray-50 dark:bg-gray-800 rounded-lg border">
-              <div className="space-y-3">
-                <div>
-                  <span className="text-sm font-medium text-gray-500">ID:</span>
-                  <p className="text-sm">{researchResult.id}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-500">
-                    クエリ:
-                  </span>
-                  <p className="text-sm">{researchResult.query}</p>
-                </div>
-                <div>
-                  <span className="text-sm font-medium text-gray-500">
-                    ステータス:
-                  </span>
-                  <span
-                    className={`text-sm px-2 py-1 rounded ${
-                      researchResult.status === "completed"
-                        ? "bg-green-100 text-green-800"
-                        : researchResult.status === "failed"
-                          ? "bg-red-100 text-red-800"
-                          : "bg-yellow-100 text-yellow-800"
-                    }`}
-                  >
-                    {researchResult.status}
-                  </span>
-                </div>
-                {researchResult.results &&
-                  researchResult.results.length > 0 && (
-                    <div>
-                      <span className="text-sm font-medium text-gray-500">
-                        結果:
-                      </span>
-                      <div className="space-y-2 mt-2">
-                        {researchResult.results.map((result) => (
-                          <div
-                            key={result.id}
-                            className="p-3 bg-white dark:bg-gray-700 rounded border"
-                          >
-                            <p className="text-sm mb-2">{result.content}</p>
-                            <div className="flex justify-between items-center text-xs text-gray-500">
-                              <span>出典: {result.source}</span>
-                              {result.relevanceScore && (
-                                <span>
-                                  関連度:{" "}
-                                  {(result.relevanceScore * 100).toFixed(1)}%
-                                </span>
-                              )}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Error Display */}
-        {executeResearchMutation.error && (
-          <div className="p-4 bg-red-50 dark:bg-red-900/20 rounded-lg border border-red-200 dark:border-red-800">
-            <h3 className="text-sm font-medium text-red-800 dark:text-red-200 mb-2">
-              エラーが発生しました
-            </h3>
-            <p className="text-sm text-red-700 dark:text-red-300">
-              {executeResearchMutation.error?.message ||
-                "不明なエラーが発生しました"}
-            </p>
-          </div>
-        )}
+        <ResearchResultDisplay
+          research={researchResult}
+          isLoading={executeResearchMutation.isPending}
+          error={executeResearchMutation.error}
+        />
 
         {/* Action Buttons */}
         <div className="flex space-x-4 justify-center">
