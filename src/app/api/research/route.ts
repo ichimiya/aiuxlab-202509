@@ -1,7 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { ResearchService } from "@/shared/api/external/perplexity";
-import { BedrockContentProcessor } from "@/shared/api/external/bedrock/ContentProcessor";
+import { createExecuteResearchUseCase } from "@/shared/useCases";
+import { BedrockContentProcessor } from "@/shared/infrastructure/external/bedrock/ContentProcessor";
 import { CreateResearchRequest } from "@/shared/api/generated/models";
+import type {
+  VoicePattern,
+  ResearchResult,
+} from "@/shared/api/generated/models";
 import { executeResearchBody } from "@/shared/api/generated/zod";
 
 /**
@@ -46,12 +50,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 1. リサーチサービスの実行（基本的なHTML変換のみ）
-    const researchService = new ResearchService(apiKey);
-    const initialResult = await researchService.executeResearch({
+    // 1. リサーチユースケースの実行
+    const executeResearchUseCase = createExecuteResearchUseCase(apiKey);
+    const initialResult = await executeResearchUseCase.execute({
       query: validation.data.query,
       selectedText: validation.data.selectedText,
-      voiceCommand: validation.data.voiceCommand,
+      voiceCommand: validation.data.voiceCommand as VoicePattern, // 型アサーション
     });
 
     // 2. BedrockでHTML変換を実行（各results.contentに対して）
@@ -59,7 +63,7 @@ export async function POST(request: NextRequest) {
       const bedrockProcessor = new BedrockContentProcessor();
 
       const enhancedResults = await Promise.all(
-        (initialResult.results || []).map(async (result) => {
+        (initialResult.results || []).map(async (result: ResearchResult) => {
           try {
             // BedrockでHTML変換を実行
             const enhancedContent = await bedrockProcessor.processContent(
