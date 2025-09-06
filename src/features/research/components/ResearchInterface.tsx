@@ -5,11 +5,15 @@ import { useResearchStore } from "@/shared/stores/researchStore";
 import { useExecuteResearch } from "@/shared/api/generated/api";
 import type { Research } from "@/shared/api/generated/models";
 import { ResearchResultDisplay } from "./ResearchResultDisplay";
+import { VoiceRecognitionButton } from "../../voiceRecognition/components/VoiceRecognitionButton";
+import { VoiceStatusIndicator } from "../../voiceRecognition/components/VoiceStatusIndicator";
+import { VoiceLevelMeter } from "../../voiceRecognition/components/VoiceLevelMeter";
+import { VoiceCommandHistory } from "../../voiceRecognition/components/VoiceCommandHistory";
 
 export function ResearchInterface() {
   const [query, setQuery] = useState("");
   const [researchResult, setResearchResult] = useState<Research | null>(null);
-  const { selectedText, voiceCommand, isListening } = useResearchStore();
+  const { selectedText, voiceCommand } = useResearchStore();
 
   const executeResearchMutation = useExecuteResearch({
     mutation: {
@@ -68,15 +72,12 @@ export function ResearchInterface() {
           </div>
         )}
 
-        {/* Voice Recognition Status */}
-        {isListening && (
-          <div className="flex items-center justify-center p-4 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-            <div className="flex items-center space-x-2">
-              <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-              <span className="text-sm font-medium">音声認識中...</span>
-            </div>
-          </div>
-        )}
+        {/* Voice Recognition Components */}
+        <div className="space-y-4">
+          <VoiceStatusIndicator />
+          <VoiceLevelMeter />
+          <VoiceCommandHistory />
+        </div>
 
         {/* Research Results */}
         <ResearchResultDisplay
@@ -101,12 +102,7 @@ export function ResearchInterface() {
               ? "リサーチ中..."
               : "リサーチ開始"}
           </button>
-          <button
-            type="button"
-            className="px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-green-500"
-          >
-            音声認識開始
-          </button>
+          <VoiceRecognitionButton />
         </div>
       </div>
     </div>
