@@ -106,4 +106,32 @@ describe("BedrockQueryOptimizationClient", () => {
     expect(content).toContain("### CONTEXT");
     expect(content).toContain("### PRINCIPLES");
   });
+
+  it("プロンプトに現在年と最近の年範囲が含まれる(2025固定)", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2025-09-06T00:00:00Z"));
+    const client = new BedrockQueryOptimizationClient();
+    const payload = {
+      optimizedQuery: "test",
+      addedAspects: [],
+      improvementReason: "",
+      confidence: 0.5,
+      suggestedFollowups: [],
+    };
+    const body = new TextEncoder().encode(
+      JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
+    );
+    sendMock.mockResolvedValueOnce({ body });
+
+    await client.optimizeQuery({ originalQuery: "Jリーグのチームを調べたい" });
+    const last = invokedInputs.at(-1);
+    const sent = JSON.parse(last.body);
+    const content: string = sent.messages?.[0]?.content as string;
+
+    expect(content).toContain("### TEMPORAL_CONTEXT");
+    expect(content).toContain("CURRENT_YEAR: 2025");
+    expect(content).toContain("RECENT_RANGE: 2023–2025");
+
+    vi.useRealTimers();
+  });
 });
