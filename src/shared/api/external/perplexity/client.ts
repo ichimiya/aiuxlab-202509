@@ -2,52 +2,13 @@ import type {
   PerplexityConfig,
   PerplexityRequest,
   PerplexityResponse,
-  PerplexityError,
   ResearchContext,
   PerplexityMessage,
 } from "./types";
-
-/**
- * Perplexity API のデフォルト設定
- */
-const DEFAULT_CONFIG = {
-  BASE_URL: "https://api.perplexity.ai",
-  MODEL: "llama-3.1-sonar-large-128k-online",
-  TIMEOUT: 30000,
-  MAX_TOKENS: 2000,
-  TEMPERATURE: 0.2,
-} as const;
-
-/**
- * API エンドポイント
- */
-const ENDPOINTS = {
-  CHAT_COMPLETIONS: "/chat/completions",
-} as const;
-
-/**
- * プロンプトテンプレート
- */
-const PROMPT_TEMPLATES = {
-  SYSTEM_BASE: "あなたは高度なAIリサーチアシスタントです。",
-  SYSTEM_SELECTED_TEXT:
-    '\n\n以下のテキストがユーザーによって選択されています：\n"{{selectedText}}"',
-  SYSTEM_CLOSING: "\n\n最新の情報を含む、正確で詳細な回答を提供してください。",
-} as const;
-
-/**
- * 音声コマンド指示のマッピング
- */
-const VOICE_COMMAND_INSTRUCTIONS = {
-  deepdive: "\n\n詳細に掘り下げて分析し、深い洞察を提供してください。",
-  perspective: "\n\n複数の視点から多角的に分析してください。",
-  concrete: "\n\n具体的な事例や実例を交えて説明してください。",
-  data: "\n\nデータや統計情報を重視して回答してください。",
-  compare: "\n\n比較・対比を含めて分析してください。",
-  trend: "\n\n最新のトレンドや動向に焦点を当ててください。",
-  practical: "\n\n実用的で実践的な情報を提供してください。",
-  summary: "\n\n要点を整理して簡潔にまとめてください。",
-} as const;
+import { ErrorHandler } from "./errorHandler";
+import { PerplexityConfig as Config } from "./config";
+import { ValidationUtils } from "./utils";
+import { TypeGuards } from "./typeGuards";
 
 /**
  * Perplexity API クライアント
@@ -56,15 +17,15 @@ export class PerplexityClient {
   private readonly config: Required<PerplexityConfig>;
 
   constructor(config: PerplexityConfig) {
-    if (!config.apiKey?.trim()) {
-      throw new Error("Perplexity API key is required");
+    if (!ValidationUtils.validateApiKey(config.apiKey)) {
+      throw new Error(Config.ERROR_MESSAGES.API_KEY_REQUIRED);
     }
 
     this.config = {
-      baseUrl: DEFAULT_CONFIG.BASE_URL,
-      model: DEFAULT_CONFIG.MODEL,
-      timeout: DEFAULT_CONFIG.TIMEOUT,
-      ...config,
+      apiKey: config.apiKey,
+      baseUrl: config.baseUrl || Config.DEFAULT_API_CONFIG.BASE_URL,
+      model: config.model || Config.DEFAULT_API_CONFIG.MODEL,
+      timeout: config.timeout || Config.DEFAULT_API_CONFIG.TIMEOUT,
     };
   }
 
@@ -72,7 +33,11 @@ export class PerplexityClient {
    * リサーチクエリを実行
    */
   async search(context: ResearchContext): Promise<PerplexityResponse> {
-    this.validateContext(context);
+    if (!ValidationUtils.validateQuery(context.query)) {
+      throw ErrorHandler.handleValidationError(
+        Config.ERROR_MESSAGES.QUERY_REQUIRED,
+      );
+    }
 
     const request = this.buildRequest(context);
 
@@ -80,7 +45,7 @@ export class PerplexityClient {
       const response = await this.makeApiCall(request);
       return await this.handleResponse(response);
     } catch (error) {
-      throw this.handleError(error);
+      throw ErrorHandler.handleError(error);
     }
   }
 
@@ -91,8 +56,8 @@ export class PerplexityClient {
     return {
       model: this.config.model,
       messages: this.buildPrompt(context),
-      max_tokens: DEFAULT_CONFIG.MAX_TOKENS,
-      temperature: DEFAULT_CONFIG.TEMPERATURE,
+      max_tokens: Config.DEFAULT_API_CONFIG.MAX_TOKENS,
+      temperature: Config.DEFAULT_API_CONFIG.TEMPERATURE,
       return_citations: true,
       return_related_questions: true,
     };
@@ -102,14 +67,26 @@ export class PerplexityClient {
    * API呼び出しを実行
    */
   private async makeApiCall(request: PerplexityRequest): Promise<Response> {
-    const url = `${this.config.baseUrl}${ENDPOINTS.CHAT_COMPLETIONS}`;
+    const url = `${this.config.baseUrl}${Config.ENDPOINTS.CHAT_COMPLETIONS}`;
 
-    return fetch(url, {
-      method: "POST",
-      headers: this.buildHeaders(),
-      body: JSON.stringify(request),
-      signal: AbortSignal.timeout(this.config.timeout),
-    });
+    // タイムアウト処理（AbortControllerを使用）
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), this.config.timeout);
+
+    try {
+      const response = await fetch(url, {
+        method: "POST",
+        headers: this.buildHeaders(),
+        body: JSON.stringify(request),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      clearTimeout(timeoutId);
+      throw error;
+    }
   }
 
   /**
@@ -129,91 +106,49 @@ export class PerplexityClient {
     response: Response,
   ): Promise<PerplexityResponse> {
     if (!response.ok) {
-      const errorData: PerplexityError = await response.json().catch(() => ({
-        error: {
-          message: `HTTP ${response.status}: ${response.statusText}`,
-          type: "http_error",
-        },
-      }));
-      throw new Error(errorData.error.message);
+      const errorData = await response.json().catch(() => undefined);
+      throw ErrorHandler.handleHttpError(response, errorData);
     }
 
-    return await response.json();
-  }
+    const responseData = await response.json();
 
-  /**
-   * エラーハンドリング
-   */
-  private handleError(error: unknown): Error {
-    if (error instanceof Error) {
-      return error;
+    // 基本的な型チェック
+    if (!responseData || typeof responseData !== "object") {
+      throw ErrorHandler.handleResponseFormatError();
     }
-    return new Error("Unknown error occurred during API call");
-  }
 
-  /**
-   * コンテキストバリデーション
-   */
-  private validateContext(context: ResearchContext): void {
-    if (!context.query?.trim()) {
-      throw new Error("Research query is required");
+    // 必要な構造チェック（choices が存在するかのみチェック）
+    const response_obj = responseData as { choices?: unknown[] };
+    if (!response_obj.choices || !Array.isArray(response_obj.choices)) {
+      throw ErrorHandler.handleResponseFormatError();
     }
+
+    // 空レスポンスチェック
+    if (response_obj.choices.length === 0) {
+      throw ErrorHandler.handleEmptyResponseError();
+    }
+
+    // 完全な型チェック
+    if (!TypeGuards.isPerplexityResponse(responseData)) {
+      throw ErrorHandler.handleResponseFormatError();
+    }
+
+    return responseData;
   }
 
   /**
    * リサーチコンテキストからプロンプトメッセージを構築
    */
   private buildPrompt(context: ResearchContext): PerplexityMessage[] {
-    const systemPrompt = this.buildSystemPrompt(context);
-    const userPrompt = this.buildUserPrompt(context);
+    const systemPrompt = Config.buildSystemPrompt(
+      context.selectedText,
+      context.voiceCommand,
+    );
+    const userPrompt = context.query.trim();
 
     return [
       { role: "system", content: systemPrompt },
       { role: "user", content: userPrompt },
     ];
-  }
-
-  /**
-   * システムプロンプトを構築
-   */
-  private buildSystemPrompt(context: ResearchContext): string {
-    const parts: string[] = [PROMPT_TEMPLATES.SYSTEM_BASE];
-
-    if (context.selectedText?.trim()) {
-      const selectedTextPrompt = PROMPT_TEMPLATES.SYSTEM_SELECTED_TEXT.replace(
-        "{{selectedText}}",
-        context.selectedText,
-      );
-      parts.push(selectedTextPrompt);
-    }
-
-    if (context.voiceCommand) {
-      const instruction = this.getVoiceCommandInstruction(context.voiceCommand);
-      if (instruction) {
-        parts.push(instruction);
-      }
-    }
-
-    parts.push(PROMPT_TEMPLATES.SYSTEM_CLOSING);
-
-    return parts.join("");
-  }
-
-  /**
-   * ユーザープロンプトを構築
-   */
-  private buildUserPrompt(context: ResearchContext): string {
-    return context.query.trim();
-  }
-
-  /**
-   * 音声コマンドに応じた指示を生成
-   */
-  private getVoiceCommandInstruction(voiceCommand: string): string {
-    return (
-      VOICE_COMMAND_INSTRUCTIONS[
-        voiceCommand as keyof typeof VOICE_COMMAND_INSTRUCTIONS
-      ] || ""
-    );
   }
 }

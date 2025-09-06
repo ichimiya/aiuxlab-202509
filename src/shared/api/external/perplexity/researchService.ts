@@ -2,21 +2,14 @@ import { PerplexityClient } from "./client";
 import type { ResearchContext, PerplexityResponse } from "./types";
 import type { Research, ResearchResult } from "../../generated/models";
 import type { VoicePattern } from "../../generated/models/voicePattern";
+import { ErrorHandler } from "./errorHandler";
+import { PerplexityConfig } from "./config";
+import { RelevanceCalculator, IdGenerator, ValidationUtils } from "./utils";
 
 /**
  * リサーチ実行サービス
  * Perplexity APIを使用してリサーチを実行し、結果をアプリケーションの形式に変換する
  */
-/**
- * ResearchService設定定数
- */
-const RESEARCH_CONSTANTS = {
-  SOURCE_NAME: "Perplexity AI",
-  MIN_RELEVANCE_SCORE: 0.1,
-  MAX_RELEVANCE_SCORE: 1.0,
-  ID_PREFIX: "research",
-  ID_RANDOM_LENGTH: 9,
-} as const;
 
 /**
  * リサーチ実行サービス
@@ -26,8 +19,8 @@ export class ResearchService {
   private readonly client: PerplexityClient;
 
   constructor(apiKey: string) {
-    if (!apiKey?.trim()) {
-      throw new Error("Perplexity API key is required");
+    if (!ValidationUtils.validateApiKey(apiKey)) {
+      throw new Error(PerplexityConfig.ERROR_MESSAGES.API_KEY_REQUIRED);
     }
 
     this.client = new PerplexityClient({
@@ -51,21 +44,8 @@ export class ResearchService {
    * リサーチエラーハンドリング
    */
   private handleResearchError(context: ResearchContext, error: unknown): never {
-    const errorMessage = this.extractErrorMessage(error);
-    throw new Error(`Failed to execute research: ${errorMessage}`);
-  }
-
-  /**
-   * エラーメッセージを抽出
-   */
-  private extractErrorMessage(error: unknown): string {
-    if (error instanceof Error) {
-      return error.message;
-    }
-    if (typeof error === "string") {
-      return error;
-    }
-    return "Unknown error occurred";
+    const perplexityError = ErrorHandler.handleError(error);
+    throw new Error(`Failed to execute research: ${perplexityError.message}`);
   }
 
   /**
@@ -76,7 +56,7 @@ export class ResearchService {
     response: PerplexityResponse,
   ): Research {
     const timestamp = this.getCurrentTimestamp();
-    const researchId = this.generateResearchId();
+    const researchId = IdGenerator.generateResearchId();
 
     if (this.isEmptyResponse(response)) {
       return this.createFailedResearch(context, researchId, timestamp);
@@ -147,25 +127,18 @@ export class ResearchService {
     index: number,
     responseId: string,
   ): ResearchResult {
-    const relevanceScore = this.calculateRelevanceScore(
+    const relevanceScore = RelevanceCalculator.calculate(
       context.query,
       choice.message.content,
     );
 
     return {
-      id: this.generateResultId(responseId, index),
+      id: IdGenerator.generateResultId(responseId, index),
       content: choice.message.content,
-      source: RESEARCH_CONSTANTS.SOURCE_NAME,
+      source: PerplexityConfig.RESEARCH_CONSTANTS.SOURCE_NAME,
       relevanceScore,
       voicePattern: this.mapVoiceCommand(context.voiceCommand),
     };
-  }
-
-  /**
-   * 結果IDを生成
-   */
-  private generateResultId(responseId: string, index: number): string {
-    return `${responseId}-${index}`;
   }
 
   /**
@@ -176,98 +149,9 @@ export class ResearchService {
       return undefined;
     }
 
-    // 有効なVoicePatternかチェック
-    const validPatterns: Record<string, VoicePattern> = {
-      deepdive: "deepdive",
-      perspective: "perspective",
-      concrete: "concrete",
-      data: "data",
-      compare: "compare",
-      trend: "trend",
-      practical: "practical",
-      summary: "summary",
-    };
+    // ValidationUtilsでバリデーションを実行
 
-    return validPatterns[voiceCommand];
-  }
-
-  /**
-   * 関連度スコアを計算（改良版）
-   * クエリキーワードとコンテンツの類似度を計算
-   */
-  private calculateRelevanceScore(query: string, content: string): number {
-    if (!query?.trim() || !content?.trim()) {
-      return RESEARCH_CONSTANTS.MIN_RELEVANCE_SCORE;
-    }
-
-    const queryWords = this.tokenizeText(query);
-    const contentWords = this.tokenizeText(content);
-
-    if (queryWords.length === 0) {
-      return RESEARCH_CONSTANTS.MIN_RELEVANCE_SCORE;
-    }
-
-    // 完全一致と部分一致の両方を考慮
-    const exactMatches = this.countExactMatches(queryWords, contentWords);
-    const partialMatches = this.countPartialMatches(queryWords, contentWords);
-
-    // 重み付きスコア計算
-    const exactWeight = 1.0;
-    const partialWeight = 0.5;
-    const totalWeight = exactWeight + partialWeight;
-
-    const score =
-      (exactMatches * exactWeight + partialMatches * partialWeight) /
-      (queryWords.length * totalWeight);
-
-    return this.clampScore(score);
-  }
-
-  /**
-   * テキストをトークン化
-   */
-  private tokenizeText(text: string): string[] {
-    return text
-      .toLowerCase()
-      .replace(/[^\w\s]/g, " ") // 記号を空白に置換
-      .split(/\s+/)
-      .filter((word) => word.length > 1); // 1文字の単語を除外
-  }
-
-  /**
-   * 完全一致の数をカウント
-   */
-  private countExactMatches(
-    queryWords: string[],
-    contentWords: string[],
-  ): number {
-    return queryWords.filter((word) => contentWords.includes(word)).length;
-  }
-
-  /**
-   * 部分一致の数をカウント
-   */
-  private countPartialMatches(
-    queryWords: string[],
-    contentWords: string[],
-  ): number {
-    return queryWords.filter((queryWord) =>
-      contentWords.some(
-        (contentWord) =>
-          queryWord !== contentWord && // 完全一致は除外
-          (contentWord.includes(queryWord) || queryWord.includes(contentWord)),
-      ),
-    ).length;
-  }
-
-  /**
-   * スコアを有効範囲にクランプ
-   */
-  private clampScore(score: number): number {
-    return Math.min(
-      Math.max(score, RESEARCH_CONSTANTS.MIN_RELEVANCE_SCORE),
-      RESEARCH_CONSTANTS.MAX_RELEVANCE_SCORE,
-    );
+    return ValidationUtils.validateVoiceCommand(voiceCommand);
   }
 
   /**
@@ -275,17 +159,5 @@ export class ResearchService {
    */
   private getCurrentTimestamp(): string {
     return new Date().toISOString();
-  }
-
-  /**
-   * 一意なリサーチIDを生成
-   */
-  private generateResearchId(): string {
-    const timestamp = Date.now();
-    const randomSuffix = Math.random()
-      .toString(36)
-      .substr(2, RESEARCH_CONSTANTS.ID_RANDOM_LENGTH);
-
-    return `${RESEARCH_CONSTANTS.ID_PREFIX}-${timestamp}-${randomSuffix}`;
   }
 }

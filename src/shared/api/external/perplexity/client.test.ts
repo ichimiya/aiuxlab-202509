@@ -101,7 +101,25 @@ describe("PerplexityClient", () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({}),
+        json: () =>
+          Promise.resolve({
+            id: "test",
+            object: "chat.completion",
+            created: Date.now(),
+            model: "test",
+            choices: [
+              {
+                index: 0,
+                message: { role: "assistant", content: "test response" },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 10,
+              completion_tokens: 10,
+              total_tokens: 20,
+            },
+          }),
       });
 
       // Act
@@ -123,7 +141,25 @@ describe("PerplexityClient", () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({}),
+        json: () =>
+          Promise.resolve({
+            id: "test",
+            object: "chat.completion",
+            created: Date.now(),
+            model: "test",
+            choices: [
+              {
+                index: 0,
+                message: { role: "assistant", content: "test response" },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 10,
+              completion_tokens: 10,
+              total_tokens: 20,
+            },
+          }),
       });
 
       // Act
@@ -169,6 +205,178 @@ describe("PerplexityClient", () => {
       // Act & Assert
       await expect(client.search(context)).rejects.toThrow("Network error");
     });
+
+    describe("詳細エラーハンドリング", () => {
+      const context: ResearchContext = { query: "テストクエリ" };
+
+      it("レート制限エラー（429）は詳細情報付きで処理される", async () => {
+        const mockErrorResponse = {
+          error: {
+            message: "Rate limit exceeded",
+            type: "rate_limit_error",
+          },
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 429,
+          headers: new Headers({
+            "content-type": "application/json",
+            "retry-after": "60",
+          }),
+          json: () => Promise.resolve(mockErrorResponse),
+        });
+
+        try {
+          await client.search(context);
+          expect.fail("Expected error to be thrown");
+        } catch (error: unknown) {
+          expect(error).toBeInstanceOf(Error);
+          if (error instanceof Error) {
+            expect(error.name).toBe("PerplexityAPIError");
+            expect(error.message).toContain("Rate limit exceeded");
+          }
+        }
+      });
+
+      it("認証エラー（401）は詳細情報付きで処理される", async () => {
+        const mockErrorResponse = {
+          error: {
+            message: "Invalid API key",
+            type: "authentication_error",
+          },
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: new Headers({ "content-type": "application/json" }),
+          json: () => Promise.resolve(mockErrorResponse),
+        });
+
+        try {
+          await client.search(context);
+          expect.fail("Expected error to be thrown");
+        } catch (error: unknown) {
+          expect(error).toBeInstanceOf(Error);
+          if (error instanceof Error) {
+            expect(error.name).toBe("PerplexityAPIError");
+            expect(error.message).toContain("Invalid API key");
+          }
+        }
+      });
+
+      it("サービス利用不可エラー（503）は詳細情報付きで処理される", async () => {
+        const mockErrorResponse = {
+          error: {
+            message: "Service temporarily unavailable",
+            type: "service_unavailable",
+          },
+        };
+
+        mockFetch.mockResolvedValueOnce({
+          ok: false,
+          status: 503,
+          headers: new Headers({ "content-type": "application/json" }),
+          json: () => Promise.resolve(mockErrorResponse),
+        });
+
+        try {
+          await client.search(context);
+          expect.fail("Expected error to be thrown");
+        } catch (error: unknown) {
+          expect(error).toBeInstanceOf(Error);
+          if (error instanceof Error) {
+            expect(error.name).toBe("PerplexityAPIError");
+            expect(error.message).toContain("Service temporarily unavailable");
+          }
+        }
+      });
+
+      it("タイムアウトエラーは詳細情報付きで処理される", async () => {
+        const abortError = new Error("The operation was aborted");
+        abortError.name = "AbortError";
+        mockFetch.mockRejectedValueOnce(abortError);
+
+        try {
+          await client.search(context);
+          expect.fail("Expected error to be thrown");
+        } catch (error: unknown) {
+          expect(error).toBeInstanceOf(Error);
+          if (error instanceof Error) {
+            expect(error.name).toBe("PerplexityAPIError");
+            expect(error.message).toContain("The operation was aborted"); // リファクタリング後の正確なエラーメッセージ
+          }
+        }
+      });
+
+      it("ネットワーク接続エラーは詳細情報付きで処理される", async () => {
+        mockFetch.mockRejectedValueOnce(new Error("Failed to fetch"));
+
+        try {
+          await client.search(context);
+          expect.fail("Expected error to be thrown");
+        } catch (error: unknown) {
+          expect(error).toBeInstanceOf(Error);
+          if (error instanceof Error) {
+            expect(error.name).toBe("PerplexityAPIError");
+            expect(error.message).toContain("Failed to fetch"); // リファクタリング後の正確なエラーメッセージ
+          }
+        }
+      });
+
+      it("不正なレスポンス形式は詳細情報付きで処理される", async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
+          json: () => Promise.resolve({ invalid: "response" }),
+        });
+
+        try {
+          await client.search(context);
+          expect.fail("Expected error to be thrown");
+        } catch (error: unknown) {
+          expect(error).toBeInstanceOf(Error);
+          if (error instanceof Error) {
+            expect(error.name).toBe("PerplexityAPIError");
+            expect(error.message).toContain("Invalid response format");
+          }
+        }
+      });
+
+      it("空のレスポンスは詳細情報付きで処理される", async () => {
+        mockFetch.mockResolvedValueOnce({
+          ok: true,
+          status: 200,
+          headers: new Headers({ "content-type": "application/json" }),
+          json: () =>
+            Promise.resolve({
+              id: "test",
+              object: "chat.completion",
+              created: Date.now(),
+              model: "test",
+              choices: [],
+              usage: {
+                prompt_tokens: 0,
+                completion_tokens: 0,
+                total_tokens: 0,
+              },
+            }),
+        });
+
+        try {
+          await client.search(context);
+          expect.fail("Expected error to be thrown");
+        } catch (error: unknown) {
+          expect(error).toBeInstanceOf(Error);
+          if (error instanceof Error) {
+            expect(error.name).toBe("PerplexityAPIError");
+            expect(error.message).toContain("Empty response received");
+          }
+        }
+      });
+    });
   });
 
   describe("プロンプト構築のテスト（search経由）", () => {
@@ -184,7 +392,25 @@ describe("PerplexityClient", () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ choices: [], usage: {} }),
+        json: () =>
+          Promise.resolve({
+            id: "test",
+            object: "chat.completion",
+            created: Date.now(),
+            model: "test",
+            choices: [
+              {
+                index: 0,
+                message: { role: "assistant", content: "test response" },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 10,
+              completion_tokens: 10,
+              total_tokens: 20,
+            },
+          }),
       });
 
       // Act
@@ -208,7 +434,25 @@ describe("PerplexityClient", () => {
 
       mockFetch.mockResolvedValueOnce({
         ok: true,
-        json: () => Promise.resolve({ choices: [], usage: {} }),
+        json: () =>
+          Promise.resolve({
+            id: "test",
+            object: "chat.completion",
+            created: Date.now(),
+            model: "test",
+            choices: [
+              {
+                index: 0,
+                message: { role: "assistant", content: "test response" },
+                finish_reason: "stop",
+              },
+            ],
+            usage: {
+              prompt_tokens: 10,
+              completion_tokens: 10,
+              total_tokens: 20,
+            },
+          }),
       });
 
       // Act

@@ -264,6 +264,84 @@ describe("ResearchService", () => {
       expect(result.status).toBe("failed");
       expect(result.results).toHaveLength(0);
     });
+
+    describe("詳細エラーハンドリング", () => {
+      it("PerplexityAPIErrorはユーザー向けメッセージ付きで処理される", async () => {
+        // Arrange
+        const context: ResearchContext = {
+          query: "テストクエリ",
+        };
+
+        mockClient.search.mockRejectedValueOnce(
+          new Error("PerplexityAPIError"),
+        );
+
+        // Act & Assert
+        await expect(service.executeResearch(context)).rejects.toThrow(
+          "Failed to execute research: PerplexityAPIError",
+        );
+      });
+
+      it("レート制限エラーは適切にハンドリングされる", async () => {
+        // Arrange
+        const context: ResearchContext = {
+          query: "テストクエリ",
+        };
+
+        mockClient.search.mockRejectedValueOnce(
+          new Error("Rate limit exceeded"),
+        );
+
+        // Act & Assert
+        await expect(service.executeResearch(context)).rejects.toThrow(
+          "Failed to execute research: Rate limit exceeded",
+        );
+      });
+
+      it("ネットワークエラーは適切にハンドリングされる", async () => {
+        // Arrange
+        const context: ResearchContext = {
+          query: "テストクエリ",
+        };
+
+        mockClient.search.mockRejectedValueOnce(
+          new Error("Network connection failed"),
+        );
+
+        // Act & Assert
+        await expect(service.executeResearch(context)).rejects.toThrow(
+          "Failed to execute research: Network connection failed",
+        );
+      });
+
+      it("不明なエラーは適切にハンドリングされる", async () => {
+        // Arrange
+        const context: ResearchContext = {
+          query: "テストクエリ",
+        };
+
+        mockClient.search.mockRejectedValueOnce("Unknown error");
+
+        // Act & Assert
+        await expect(service.executeResearch(context)).rejects.toThrow(
+          "Failed to execute research: Unknown error",
+        );
+      });
+
+      it("null値のエラーは適切にハンドリングされる", async () => {
+        // Arrange
+        const context: ResearchContext = {
+          query: "テストクエリ",
+        };
+
+        mockClient.search.mockRejectedValueOnce(null);
+
+        // Act & Assert
+        await expect(service.executeResearch(context)).rejects.toThrow(
+          "Failed to execute research: Unknown error occurred",
+        );
+      });
+    });
   });
 
   describe("enrichResearchResult", () => {
