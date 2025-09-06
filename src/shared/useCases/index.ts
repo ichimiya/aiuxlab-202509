@@ -9,4 +9,7 @@ export {
   type ResearchContext,
 } from "./ExecuteResearchUseCase";
 
-export { OptimizeQueryUseCase } from "./OptimizeQueryUseCase";
+export {
+  OptimizeQueryUseCase,
+  createOptimizeQueryUseCase,
+} from "./OptimizeQueryUseCase";

@@ -29,3 +29,11 @@ export class OptimizeQueryUseCase {
     }
   }
 }
+
+// Factory Function
+import { BedrockQueryOptimizationClient } from "@/shared/infrastructure/external/bedrock/queryOptimization";
+
+export function createOptimizeQueryUseCase(): OptimizeQueryUseCase {
+  const repo = new BedrockQueryOptimizationClient();
+  return new OptimizeQueryUseCase(repo);
+}

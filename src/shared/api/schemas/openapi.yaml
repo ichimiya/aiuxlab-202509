@@ -39,8 +39,103 @@ paths:
               schema:
                 $ref: "#/components/schemas/Error"
 
+  /query-optimization:
+    post:
+      summary: クエリ最適化を実行
+      operationId: optimizeQuery
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QueryOptimizationRequest"
+      responses:
+        "200":
+          description: 最適化結果
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OptimizationResult"
+        "400":
+          description: 無効なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
 components:
   schemas:
+    QueryOptimizationRequest:
+      type: object
+      required:
+        - originalQuery
+      properties:
+        originalQuery:
+          type: string
+          minLength: 1
+          description: 元の曖昧クエリ
+        selectedText:
+          type: string
+          description: 選択テキスト
+        voiceCommand:
+          $ref: "#/components/schemas/VoicePattern"
+        researchHistory:
+          type: array
+          items:
+            $ref: "#/components/schemas/Research"
+          description: 過去のリサーチ履歴
+        userContext:
+          type: object
+          nullable: true
+          properties:
+            interests:
+              type: array
+              items:
+                type: string
+            expertise:
+              type: array
+              items:
+                type: string
+            previousOptimizations:
+              type: array
+              items:
+                $ref: "#/components/schemas/OptimizationResult"
+
+    OptimizationResult:
+      type: object
+      required:
+        - optimizedQuery
+        - addedAspects
+        - improvementReason
+        - confidence
+        - suggestedFollowups
+      properties:
+        optimizedQuery:
+          type: string
+          description: 最適化されたクエリ
+        addedAspects:
+          type: array
+          items:
+            type: string
+          description: 追加された観点
+        improvementReason:
+          type: string
+          description: 改善の理由
+        confidence:
+          type: number
+          format: float
+          description: 信頼度（0-1）
+        suggestedFollowups:
+          type: array
+          items:
+            type: string
+          description: 推奨追加調査
     Research:
       type: object
       required:
