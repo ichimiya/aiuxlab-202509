@@ -5,17 +5,23 @@ import type {
   PerplexityResponse,
   ResearchContext,
 } from "../../infrastructure/external/perplexity";
+import type { IContentProcessingRepository } from "../../infrastructure/external/bedrock";
 
 describe("ExecuteResearchUseCase (Application Layer)", () => {
   let useCase: ExecuteResearchUseCase;
   let mockRepository: IResearchAPIRepository;
+  let mockContentRepository: IContentProcessingRepository;
 
   beforeEach(() => {
     mockRepository = {
       search: vi.fn(),
     };
 
-    useCase = new ExecuteResearchUseCase(mockRepository);
+    mockContentRepository = {
+      processContent: vi.fn(),
+    };
+
+    useCase = new ExecuteResearchUseCase(mockRepository, mockContentRepository);
   });
 
   describe("execute", () => {
@@ -53,6 +59,20 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
       };
 
       vi.mocked(mockRepository.search).mockResolvedValueOnce(mockResponse);
+      vi.mocked(mockContentRepository.processContent).mockResolvedValueOnce(
+        JSON.stringify({
+          htmlContent: "<p><strong>テスト結果のコンテンツ</strong></p>",
+          processedCitations: [
+            {
+              id: "ref1",
+              number: 1,
+              url: "https://example.com",
+              title: "テスト記事",
+              domain: "example.com",
+            },
+          ],
+        }),
+      );
 
       const context: ResearchContext = {
         query: "テストクエリ",
@@ -62,14 +82,24 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
       const result = await useCase.execute(context);
 
       expect(mockRepository.search).toHaveBeenCalledWith(context);
+      expect(mockContentRepository.processContent).toHaveBeenCalled();
       expect(result).toMatchObject({
         id: "test-research-id",
         query: "テストクエリ",
         status: "completed",
         results: expect.arrayContaining([
           expect.objectContaining({
-            content: "テスト結果のコンテンツ",
+            content: "<p><strong>テスト結果のコンテンツ</strong></p>",
             source: "perplexity",
+            processedCitations: expect.arrayContaining([
+              expect.objectContaining({
+                id: "ref1",
+                number: 1,
+                url: "https://example.com",
+                title: "テスト記事",
+                domain: "example.com",
+              }),
+            ]),
           }),
         ]),
         searchResults: expect.arrayContaining([

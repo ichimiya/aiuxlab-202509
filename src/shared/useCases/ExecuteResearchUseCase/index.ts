@@ -10,6 +10,7 @@ import type {
   PerplexityAPIError,
 } from "../../infrastructure/external/perplexity";
 import { ResearchDomainService } from "../../domain/research/services";
+import type { IContentProcessingRepository } from "../../infrastructure/external/bedrock";
 
 // ========================================
 // Use Case
@@ -18,8 +19,11 @@ import { ResearchDomainService } from "../../domain/research/services";
 export class ExecuteResearchUseCase {
   private readonly domainService: ResearchDomainService;
 
-  constructor(private readonly apiRepository: IResearchAPIRepository) {
-    this.domainService = new ResearchDomainService();
+  constructor(
+    private readonly apiRepository: IResearchAPIRepository,
+    contentRepository?: IContentProcessingRepository,
+  ) {
+    this.domainService = new ResearchDomainService(contentRepository);
   }
 
   /**
@@ -31,9 +35,14 @@ export class ExecuteResearchUseCase {
       const perplexityResponse = await this.apiRepository.search(context);
 
       // 2. ドメインロジックでの変換（Domain層）
-      return this.domainService.transformToResearch(
+      const research = this.domainService.transformToResearch(
         context,
         perplexityResponse,
+      );
+
+      // 3. コンテンツ処理（ContentRepository が注入されている場合）
+      return await this.domainService.enhanceResearchWithProcessedContent(
+        research,
       );
     } catch (error) {
       // エラーハンドリング（アプリケーション層の責務）
@@ -59,12 +68,14 @@ export class ExecuteResearchUseCase {
 // ========================================
 
 import { PerplexityClient } from "../../infrastructure/external/perplexity";
+import { BedrockClient } from "../../infrastructure/external/bedrock";
 
 export function createExecuteResearchUseCase(
   apiKey: string,
 ): ExecuteResearchUseCase {
   const apiRepository = new PerplexityClient({ apiKey });
-  return new ExecuteResearchUseCase(apiRepository);
+  const contentRepository = new BedrockClient();
+  return new ExecuteResearchUseCase(apiRepository, contentRepository);
 }
 
 // ========================================
