@@ -134,4 +134,29 @@ describe("BedrockQueryOptimizationClient", () => {
 
     vi.useRealTimers();
   });
+
+  it("プロンプトに最小拡張ポリシーが含まれ、過剰な拡張を抑制する指示がある", async () => {
+    const client = new BedrockQueryOptimizationClient();
+    const payload = {
+      optimizedQuery: "test",
+      addedAspects: [],
+      improvementReason: "",
+      confidence: 0.5,
+      suggestedFollowups: [],
+    };
+    const body = new TextEncoder().encode(
+      JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
+    );
+    sendMock.mockResolvedValueOnce({ body });
+
+    await client.optimizeQuery({ originalQuery: "Jリーグのチームを調べたい" });
+    const last = invokedInputs.at(-1);
+    const sent = JSON.parse(last.body);
+    const content: string = sent.messages?.[0]?.content as string;
+
+    expect(content).toContain("### EXPANSION_POLICY");
+    expect(content).toContain("MODE: minimal");
+    expect(content).toContain("過剰な拡張を禁止");
+    expect(content).toContain("追加観点は最大1件");
+  });
 });
