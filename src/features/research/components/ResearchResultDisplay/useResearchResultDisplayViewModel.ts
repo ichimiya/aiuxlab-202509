@@ -77,11 +77,7 @@ export function useResearchResultDisplayViewModel({
 
   // Helper functions
   const formatResultContent = (content: string): string => {
-    // 長いコンテンツの場合は適切に省略
-    const maxLength = 500;
-    if (content.length > maxLength) {
-      return content.slice(0, maxLength) + "...";
-    }
+    // フルコンテンツを表示（制限撤廃）
     return content;
   };
 
