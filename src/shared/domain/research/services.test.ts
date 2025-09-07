@@ -12,6 +12,55 @@ describe("ResearchDomainService (Domain Layer)", () => {
     service = new ResearchDomainService();
   });
 
+  describe("processContent (fallback)", () => {
+    it("contentRepository未提供時はMarkdownをHTMLに変換し、XSSを除去する", async () => {
+      service = new ResearchDomainService();
+
+      const markdown = [
+        "# タイトル",
+        "",
+        "本文に引用[1]を含む。",
+        "",
+        "- 項目1",
+        "- 項目2",
+        "",
+        "<script>alert('xss')</script>",
+      ].join("\n");
+
+      const citations = ["https://example.com/1"];
+      const searchResults = [{ title: "記事1", url: "https://example.com/1" }];
+
+      const result = await service.processContent(
+        markdown,
+        citations,
+        searchResults,
+      );
+
+      // 見出しやリストがHTMLになっている
+      expect(result.htmlContent).toContain("<h1>タイトル</h1>");
+      expect(result.htmlContent).toContain("<ul>");
+      expect(result.htmlContent).toContain("<li>項目1</li>");
+
+      // 引用番号のリンク化
+      expect(result.htmlContent).toContain('href="#ref1"');
+
+      // script除去
+      expect(result.htmlContent).not.toContain("<script");
+
+      // 構造化引用の生成
+      expect(result.processedCitations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "ref1",
+            number: 1,
+            url: "https://example.com/1",
+            title: "記事1",
+            domain: "example.com",
+          }),
+        ]),
+      );
+    });
+  });
   describe("transformToResearch", () => {
     it("Perplexity応答をResearchドメインモデルに変換", () => {
       const context: ResearchContext = {

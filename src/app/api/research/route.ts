@@ -1,5 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { createExecuteResearchUseCase } from "@/shared/useCases";
+import {
+  createExecuteResearchUseCase,
+  ApplicationError,
+} from "@/shared/useCases";
 import { CreateResearchRequest } from "@/shared/api/generated/models";
 import type { VoicePattern } from "@/shared/api/generated/models";
 import { executeResearchBody } from "@/shared/api/generated/zod";
@@ -57,6 +60,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(result, { status: 200 });
   } catch (error) {
     console.error("Research API error:", error);
+
+    // アプリケーション層のエラーであればステータス/コードを反映
+    if (error instanceof ApplicationError) {
+      return NextResponse.json(
+        {
+          message: error.message || "リサーチの実行中にエラーが発生しました",
+          code: error.code || "INTERNAL_ERROR",
+        },
+        { status: error.status || 500 },
+      );
+    }
 
     return NextResponse.json(
       {

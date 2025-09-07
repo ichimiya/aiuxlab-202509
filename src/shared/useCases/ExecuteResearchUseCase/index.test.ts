@@ -1,11 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { ExecuteResearchUseCase, createExecuteResearchUseCase } from "./index";
+import { ApplicationError } from "../errors";
 import type {
   IResearchAPIRepository,
   PerplexityResponse,
   ResearchContext,
 } from "../../infrastructure/external/perplexity";
 import type { IContentProcessingRepository } from "../../infrastructure/external/bedrock";
+import { ResearchDomainService } from "../../domain/research/services";
 
 describe("ExecuteResearchUseCase (Application Layer)", () => {
   let useCase: ExecuteResearchUseCase;
@@ -21,7 +23,10 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
       processContent: vi.fn(),
     };
 
-    useCase = new ExecuteResearchUseCase(mockRepository, mockContentRepository);
+    const researchDomainService = new ResearchDomainService(
+      mockContentRepository,
+    );
+    useCase = new ExecuteResearchUseCase(mockRepository, researchDomainService);
   });
 
   describe("execute", () => {
@@ -112,20 +117,25 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
       });
     });
 
-    it("API エラーを適切に再throw", async () => {
+    it("API エラーをApplicationErrorでラップ", async () => {
       const apiError = new Error("API error");
       apiError.name = "PerplexityAPIError";
 
-      vi.mocked(mockRepository.search).mockRejectedValueOnce(apiError);
+      vi.mocked(mockRepository.search).mockRejectedValue(apiError);
 
       const context: ResearchContext = {
         query: "テストクエリ",
       };
 
-      await expect(useCase.execute(context)).rejects.toThrow(apiError);
+      const promise = useCase.execute(context);
+      await expect(promise).rejects.toBeInstanceOf(ApplicationError);
+      await expect(promise).rejects.toMatchObject({
+        code: "UPSTREAM_ERROR",
+        status: 502,
+      });
     });
 
-    it("その他のエラーを適切にラップ", async () => {
+    it("その他のエラーをApplicationErrorでラップ", async () => {
       const genericError = new Error("Generic error");
       vi.mocked(mockRepository.search).mockRejectedValueOnce(genericError);
 
@@ -133,8 +143,8 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
         query: "テストクエリ",
       };
 
-      await expect(useCase.execute(context)).rejects.toThrow(
-        "Research execution failed: Generic error",
+      await expect(useCase.execute(context)).rejects.toBeInstanceOf(
+        ApplicationError,
       );
     });
   });
