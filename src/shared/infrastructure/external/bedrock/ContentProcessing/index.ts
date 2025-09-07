@@ -1,8 +1,7 @@
 /**
  * Bedrock API Infrastructure - Content Processing
  */
-import { BaseBedrockClient } from "../Core/baseClient";
-import { jsonSchema } from "../Core/middleware";
+import { BaseBedrockClient, jsonSchema } from "../common";
 
 export interface BedrockConfig {
   region?: string;

@@ -33,9 +33,6 @@ export class BaseBedrockClient {
     this.temperature = config.temperature ?? 0.3;
   }
 
-  /**
-   * 共通のInvoke。単一のuserメッセージ(content=prompt)を送信し、最初のcontent.textを返す。
-   */
   async invokePrompt(prompt: string): Promise<string> {
     const command = new InvokeModelCommand({
       modelId: this.modelId,
@@ -43,12 +40,7 @@ export class BaseBedrockClient {
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: this.maxTokens,
         temperature: this.temperature,
-        messages: [
-          {
-            role: "user",
-            content: prompt,
-          },
-        ],
+        messages: [{ role: "user", content: prompt }],
       }),
     });
 

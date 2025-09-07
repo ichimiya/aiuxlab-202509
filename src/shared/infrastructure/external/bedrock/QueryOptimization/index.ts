@@ -3,12 +3,12 @@ import type {
   OptimizationResult,
 } from "@/shared/domain/queryOptimization/services";
 import { QueryOptimizationDomainService } from "@/shared/domain/queryOptimization/services";
-import { BaseBedrockClient } from "../Core/baseClient";
 import {
+  BaseBedrockClient,
   temporalContext,
   expansionPolicy,
   jsonSchema,
-} from "../Core/middleware";
+} from "../common";
 
 export class BedrockOptimizationAPIError extends Error {
   constructor(
