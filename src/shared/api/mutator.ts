@@ -1,10 +1,32 @@
 import axios, { AxiosRequestConfig } from "axios";
 
+function normalizeBase(url?: string) {
+  if (!url) return undefined;
+  const trimmed = url.replace(/\/$/, "");
+  return trimmed.endsWith("/api") ? trimmed : `${trimmed}/api`;
+}
+
+function resolveBaseURL() {
+  const explicit = normalizeBase(
+    process.env.NEXT_PUBLIC_API_BASE_URL || process.env.API_BASE_URL,
+  );
+  if (explicit) return explicit;
+
+  const isBrowser = typeof window !== "undefined";
+  if (isBrowser) {
+    // ブラウザでは同一オリジンの相対パスを使う（ポートに自動追従）
+    return "/api";
+  }
+
+  // SSR/NodeではPORT/HOSTから組み立て（開発ポートの自動切替に追随）
+  const host = process.env.HOST || "localhost";
+  const port = process.env.PORT || "3000";
+  const protocol = "http";
+  return `${protocol}://${host}:${port}/api`;
+}
+
 const axiosInstance = axios.create({
-  baseURL:
-    process.env.NODE_ENV === "development"
-      ? "http://localhost:3000/api"
-      : "/api",
+  baseURL: resolveBaseURL(),
   timeout: 60000, // 60秒に延長（Perplexity API用）
   headers: {
     "Content-Type": "application/json",

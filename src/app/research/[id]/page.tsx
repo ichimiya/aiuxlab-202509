@@ -1,13 +1,13 @@
 import { ResearchDetailView } from "@/features/research/components/ResearchDetailView";
 
+// Next.js 15 の PageProps 仕様に合わせて params を Promise 化
 interface ResearchPageProps {
-  params: {
-    id: string;
-  };
+  params: Promise<{ id: string }>;
 }
 
-export default function ResearchPage({ params }: ResearchPageProps) {
-  return <ResearchDetailView id={params.id} />;
+export default async function ResearchPage({ params }: ResearchPageProps) {
+  const { id } = await params;
+  return <ResearchDetailView id={id} />;
 }
 
 // Optional: Generate static params for SSG
@@ -19,8 +19,9 @@ export async function generateStaticParams() {
 
 // Optional: Metadata generation
 export async function generateMetadata({ params }: ResearchPageProps) {
+  const { id } = await params;
   return {
-    title: `Research ${params.id} - AI Research POC`,
-    description: `Detailed view of research ${params.id}`,
+    title: `Research ${id} - AI Research POC`,
+    description: `Detailed view of research ${id}`,
   };
 }

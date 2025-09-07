@@ -8,7 +8,10 @@
 
 export * from "./createResearchRequest";
 export * from "./error";
+export * from "./optimizationResult";
 export * from "./processedCitation";
+export * from "./queryOptimizationRequest";
+export * from "./queryOptimizationRequestUserContext";
 export * from "./research";
 export * from "./researchResult";
 export * from "./researchStatus";

@@ -13,7 +13,13 @@ import type {
   UseMutationResult,
 } from "@tanstack/react-query";
 
-import type { CreateResearchRequest, Error, Research } from "./models";
+import type {
+  CreateResearchRequest,
+  Error,
+  OptimizationResult,
+  QueryOptimizationRequest,
+  Research,
+} from "./models";
 
 import { customInstance } from "../mutator";
 
@@ -96,6 +102,89 @@ export const useExecuteResearch = <TError = Error | Error, TContext = unknown>(
   TContext
 > => {
   const mutationOptions = getExecuteResearchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+
+/**
+ * @summary クエリ最適化を実行
+ */
+export const optimizeQuery = (
+  queryOptimizationRequest: QueryOptimizationRequest,
+  signal?: AbortSignal,
+) => {
+  return customInstance<OptimizationResult>({
+    url: `/query-optimization`,
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    data: queryOptimizationRequest,
+    signal,
+  });
+};
+
+export const getOptimizeQueryMutationOptions = <
+  TError = Error | Error,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof optimizeQuery>>,
+    TError,
+    { data: QueryOptimizationRequest },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof optimizeQuery>>,
+  TError,
+  { data: QueryOptimizationRequest },
+  TContext
+> => {
+  const mutationKey = ["optimizeQuery"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof optimizeQuery>>,
+    { data: QueryOptimizationRequest }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return optimizeQuery(data);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type OptimizeQueryMutationResult = NonNullable<
+  Awaited<ReturnType<typeof optimizeQuery>>
+>;
+export type OptimizeQueryMutationBody = QueryOptimizationRequest;
+export type OptimizeQueryMutationError = Error | Error;
+
+/**
+ * @summary クエリ最適化を実行
+ */
+export const useOptimizeQuery = <TError = Error | Error, TContext = unknown>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof optimizeQuery>>,
+      TError,
+      { data: QueryOptimizationRequest },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof optimizeQuery>>,
+  TError,
+  { data: QueryOptimizationRequest },
+  TContext
+> => {
+  const mutationOptions = getOptimizeQueryMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };

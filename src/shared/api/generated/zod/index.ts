@@ -75,3 +75,120 @@ export const executeResearchResponse = zod.object({
   createdAt: zod.iso.datetime({}).describe("作成日時"),
   updatedAt: zod.iso.datetime({}).optional().describe("更新日時"),
 });
+
+/**
+ * @summary クエリ最適化を実行
+ */
+export const optimizeQueryBody = zod.object({
+  originalQuery: zod.string().min(1).describe("元の曖昧クエリ"),
+  selectedText: zod.string().optional().describe("選択テキスト"),
+  voiceCommand: zod
+    .enum([
+      "deepdive",
+      "perspective",
+      "concrete",
+      "data",
+      "compare",
+      "trend",
+      "practical",
+      "summary",
+    ])
+    .optional()
+    .describe("音声解釈パターン"),
+  researchHistory: zod
+    .array(
+      zod.object({
+        id: zod.string().describe("リサーチID"),
+        query: zod.string().describe("初期クエリ"),
+        status: zod
+          .enum(["pending", "completed", "failed"])
+          .describe("リサーチ状態"),
+        results: zod
+          .array(
+            zod.object({
+              id: zod.string().describe("結果ID"),
+              content: zod.string().describe("HTML化されたリサーチ結果内容"),
+              source: zod.string().describe("情報源"),
+              relevanceScore: zod.number().optional().describe("関連度スコア"),
+              voicePattern: zod
+                .enum([
+                  "deepdive",
+                  "perspective",
+                  "concrete",
+                  "data",
+                  "compare",
+                  "trend",
+                  "practical",
+                  "summary",
+                ])
+                .optional()
+                .describe("音声解釈パターン"),
+              processedCitations: zod
+                .array(
+                  zod.object({
+                    id: zod.string().describe("引用ID（ref1, ref2など）"),
+                    number: zod.number().describe("引用番号（1, 2など）"),
+                    url: zod.string().describe("引用URL"),
+                    title: zod.string().nullish().describe("引用タイトル"),
+                    domain: zod.string().nullish().describe("引用ドメイン"),
+                  }),
+                )
+                .optional()
+                .describe("構造化された引用情報"),
+            }),
+          )
+          .optional()
+          .describe("リサーチ結果"),
+        searchResults: zod
+          .array(
+            zod.object({
+              title: zod.string().describe("ページタイトル"),
+              url: zod.string().describe("ページURL"),
+              snippet: zod.string().describe("ページ概要"),
+              date: zod
+                .string()
+                .nullish()
+                .describe("記事作成日（オプショナル）"),
+              last_updated: zod
+                .string()
+                .nullish()
+                .describe("最終更新日（オプショナル）"),
+            }),
+          )
+          .optional()
+          .describe("Perplexity検索結果"),
+        citations: zod.array(zod.string()).optional().describe("引用URL一覧"),
+        createdAt: zod.iso.datetime({}).describe("作成日時"),
+        updatedAt: zod.iso.datetime({}).optional().describe("更新日時"),
+      }),
+    )
+    .optional()
+    .describe("過去のリサーチ履歴"),
+  userContext: zod
+    .object({
+      interests: zod.array(zod.string()).optional(),
+      expertise: zod.array(zod.string()).optional(),
+      previousOptimizations: zod
+        .array(
+          zod.object({
+            optimizedQuery: zod.string().describe("最適化されたクエリ"),
+            addedAspects: zod.array(zod.string()).describe("追加された観点"),
+            improvementReason: zod.string().describe("改善の理由"),
+            confidence: zod.number().describe("信頼度（0-1）"),
+            suggestedFollowups: zod
+              .array(zod.string())
+              .describe("推奨追加調査"),
+          }),
+        )
+        .optional(),
+    })
+    .nullish(),
+});
+
+export const optimizeQueryResponse = zod.object({
+  optimizedQuery: zod.string().describe("最適化されたクエリ"),
+  addedAspects: zod.array(zod.string()).describe("追加された観点"),
+  improvementReason: zod.string().describe("改善の理由"),
+  confidence: zod.number().describe("信頼度（0-1）"),
+  suggestedFollowups: zod.array(zod.string()).describe("推奨追加調査"),
+});
