@@ -1,7 +1,8 @@
 /**
  * Bedrock API Infrastructure - Content Processing
  */
-import { BaseBedrockClient, jsonSchema } from "../common";
+import { BaseBedrockClient } from "../base/BedrockClient";
+import { jsonSchema } from "@/shared/ai/prompts/utils";
 
 export interface BedrockConfig {
   region?: string;
