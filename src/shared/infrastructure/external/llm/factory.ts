@@ -4,6 +4,7 @@ import type {
   ContentProcessingOutput,
 } from "@/shared/ai/schemas/contentProcessing";
 import { BedrockContentProcessingAdapter } from "@/shared/infrastructure/external/llm/adapters/bedrock/contentProcessingAdapter";
+import { BedrockQueryOptimizationAdapter } from "@/shared/infrastructure/external/llm/adapters/bedrock/queryOptimizationAdapter";
 
 function provider(): string {
   return (process.env.LLM_PROVIDER || "bedrock").toLowerCase();
@@ -32,4 +33,23 @@ export function createContentProcessingAdapter(): ContentProcessingPort {
 
   // 既定: Bedrock Adapter
   return new BedrockContentProcessingAdapter({});
+}
+
+// Query Optimization Adapter factory
+export function createQueryOptimizationAdapter() {
+  const p = provider();
+  if (p === "vertex") {
+    return {
+      async optimizeQuery() {
+        return {
+          optimizedQuery: "",
+          addedAspects: [],
+          improvementReason: "",
+          confidence: 0.5,
+          suggestedFollowups: [],
+        };
+      },
+    };
+  }
+  return new BedrockQueryOptimizationAdapter({});
 }

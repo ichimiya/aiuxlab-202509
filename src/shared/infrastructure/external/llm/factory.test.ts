@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from "vitest";
 
 // Red: 未実装のFactoryを前提にテスト
 import { createContentProcessingAdapter } from "./factory";
+import { createQueryOptimizationAdapter } from "./factory";
 
 const ENV = { ...process.env };
 
@@ -23,5 +24,13 @@ describe("llm/factory", () => {
     process.env.LLM_PROVIDER = "vertex";
     const adapter = createContentProcessingAdapter();
     expect(typeof adapter.process).toBe("function");
+  });
+
+  it("queryOptimizationアダプタがoptimizeQueryを提供する", () => {
+    delete process.env.LLM_PROVIDER;
+    const repo = createQueryOptimizationAdapter();
+    expect(typeof (repo as { optimizeQuery: unknown }).optimizeQuery).toBe(
+      "function",
+    );
   });
 });
