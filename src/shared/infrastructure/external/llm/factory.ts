@@ -3,7 +3,7 @@ import type {
   ContentProcessingInput,
   ContentProcessingOutput,
 } from "@/shared/ai/schemas/contentProcessing";
-import { BedrockContentProcessingClient } from "@/shared/infrastructure/external/bedrock/ContentProcessing";
+import { BedrockContentProcessingAdapter } from "@/shared/infrastructure/external/llm/adapters/bedrock/contentProcessingAdapter";
 
 function provider(): string {
   return (process.env.LLM_PROVIDER || "bedrock").toLowerCase();
@@ -30,22 +30,6 @@ export function createContentProcessingAdapter(): ContentProcessingPort {
     return adapter;
   }
 
-  // 既定: Bedrock 客の薄いアダプタ
-  const client = new BedrockContentProcessingClient({});
-  const adapter: ContentProcessingPort = {
-    async process(
-      input: ContentProcessingInput,
-    ): Promise<ContentProcessingOutput> {
-      const text = await client.processContent({
-        markdownContent: input.markdown,
-        citations: input.citations,
-        searchResults: input.searchResults,
-      });
-      return {
-        htmlContent: text,
-        processedCitations: [],
-      };
-    },
-  };
-  return adapter;
+  // 既定: Bedrock Adapter
+  return new BedrockContentProcessingAdapter({});
 }
