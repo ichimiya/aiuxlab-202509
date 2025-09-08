@@ -1,4 +1,5 @@
 import axios, { AxiosRequestConfig } from "axios";
+import { logger } from "@/shared/lib/logger";
 
 function normalizeBase(url?: string) {
   if (!url) return undefined;
@@ -37,7 +38,7 @@ const axiosInstance = axios.create({
 axiosInstance.interceptors.request.use(
   (config) => {
     // Add auth headers, logging, etc.
-    console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+    logger.info(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
     return config;
   },
   (error) => {
@@ -48,11 +49,11 @@ axiosInstance.interceptors.request.use(
 // Response interceptor
 axiosInstance.interceptors.response.use(
   (response) => {
-    console.log(`API Response: ${response.status} ${response.config.url}`);
+    logger.debug(`API Response: ${response.status} ${response.config.url}`);
     return response;
   },
   (error) => {
-    console.error(
+    logger.error(
       `API Error: ${error.response?.status} ${error.config?.url}`,
       error,
     );
