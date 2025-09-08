@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createOptimizeQueryUseCase } from "@/shared/useCases";
 import { optimizeQueryBody } from "@/shared/api/generated/zod";
 import type { QueryOptimizationRequest } from "@/shared/domain/queryOptimization/services";
+import { parseJsonBody, validateWith, fail, ok } from "@/shared/api/http/http";
 
 /**
  * クエリ最適化 API
@@ -9,27 +10,21 @@ import type { QueryOptimizationRequest } from "@/shared/domain/queryOptimization
  */
 export async function POST(request: NextRequest) {
   try {
-    // リクエストボディの解析
-    let requestBody: unknown;
-    try {
-      requestBody = await request.json();
-    } catch {
-      return NextResponse.json(
-        { message: "無効なJSONです", code: "INVALID_JSON" },
-        { status: 400 },
-      );
-    }
+    // リクエストボディの解析（共通）
+    const parsed = await parseJsonBody(request);
+    if (parsed.status !== 200) return parsed;
+    const requestBody = await parsed.json();
 
     // バリデーション
     const validation = optimizeQueryBody.safeParse(requestBody);
     if (!validation.success) {
       const firstError = validation.error.issues[0];
-      return NextResponse.json(
+      return fail(
         {
-          message: firstError?.message ?? "無効なリクエストです",
           code: "VALIDATION_ERROR",
+          message: firstError?.message ?? "無効なリクエストです",
         },
-        { status: 400 },
+        400,
       );
     }
 
@@ -46,15 +41,15 @@ export async function POST(request: NextRequest) {
         ).userContext ?? undefined,
     };
     const result = await useCase.execute(normalized);
-    return NextResponse.json(result, { status: 200 });
+    return ok(result, 200);
   } catch (error) {
     console.error("Query Optimization API error:", error);
-    return NextResponse.json(
+    return fail(
       {
-        message: "クエリ最適化中にエラーが発生しました",
         code: "INTERNAL_ERROR",
+        message: "クエリ最適化中にエラーが発生しました",
       },
-      { status: 500 },
+      500,
     );
   }
 }

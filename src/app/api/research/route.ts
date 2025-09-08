@@ -6,6 +6,7 @@ import {
 import { CreateResearchRequest } from "@/shared/api/generated/models";
 import type { VoicePattern } from "@/shared/api/generated/models";
 import { executeResearchBody } from "@/shared/api/generated/zod";
+import { parseJsonBody, fail, ok } from "@/shared/api/http/http";
 
 /**
  * リサーチ実行API
@@ -25,27 +26,21 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // リクエストボディの解析
-    let requestBody: CreateResearchRequest;
-    try {
-      requestBody = await request.json();
-    } catch {
-      return NextResponse.json(
-        { message: "無効なJSONです", code: "INVALID_JSON" },
-        { status: 400 },
-      );
-    }
+    // リクエストボディの解析（共通）
+    const parsed = await parseJsonBody(request);
+    if (parsed.status !== 200) return parsed;
+    const requestBody = (await parsed.json()) as CreateResearchRequest;
 
     // リクエストバリデーション
     const validation = executeResearchBody.safeParse(requestBody);
     if (!validation.success) {
       const firstError = validation.error.issues[0];
-      return NextResponse.json(
+      return fail(
         {
-          message: firstError ? firstError.message : "無効なリクエストです",
           code: "VALIDATION_ERROR",
+          message: firstError ? firstError.message : "無効なリクエストです",
         },
-        { status: 400 },
+        400,
       );
     }
 
@@ -57,27 +52,27 @@ export async function POST(request: NextRequest) {
       voiceCommand: validation.data.voiceCommand as VoicePattern, // 型アサーション
     });
 
-    return NextResponse.json(result, { status: 200 });
+    return ok(result, 200);
   } catch (error) {
     console.error("Research API error:", error);
 
     // アプリケーション層のエラーであればステータス/コードを反映
     if (error instanceof ApplicationError) {
-      return NextResponse.json(
+      return fail(
         {
-          message: error.message || "リサーチの実行中にエラーが発生しました",
           code: error.code || "INTERNAL_ERROR",
+          message: error.message || "リサーチの実行中にエラーが発生しました",
         },
-        { status: error.status || 500 },
+        error.status || 500,
       );
     }
 
-    return NextResponse.json(
+    return fail(
       {
-        message: "リサーチの実行中にエラーが発生しました",
         code: "INTERNAL_ERROR",
+        message: "リサーチの実行中にエラーが発生しました",
       },
-      { status: 500 },
+      500,
     );
   }
 }
