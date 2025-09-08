@@ -1,8 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import { createOptimizeQueryUseCase } from "@/shared/useCases";
 import { optimizeQueryBody } from "@/shared/api/generated/zod";
 import type { QueryOptimizationRequest } from "@/shared/domain/queryOptimization/services";
-import { parseJsonBody, validateWith, fail, ok } from "@/shared/api/http/http";
+import { parseJsonBody, fail, ok } from "@/shared/api/http/http";
 
 /**
  * クエリ最適化 API

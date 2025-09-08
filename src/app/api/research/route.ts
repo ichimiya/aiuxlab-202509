@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest } from "next/server";
 import {
   createExecuteResearchUseCase,
   ApplicationError,
@@ -17,12 +17,12 @@ export async function POST(request: NextRequest) {
     // APIキーの確認
     const apiKey = process.env.PERPLEXITY_API_KEY;
     if (!apiKey) {
-      return NextResponse.json(
+      return fail(
         {
-          message: "Perplexity API key is not configured",
           code: "API_KEY_MISSING",
+          message: "Perplexity API key is not configured",
         },
-        { status: 500 },
+        500,
       );
     }
 
