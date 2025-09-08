@@ -77,14 +77,14 @@ export class ExecuteResearchUseCase {
 // ========================================
 
 import { PerplexityResearchClient } from "../../infrastructure/external/perplexity";
-import { BedrockContentProcessingClient } from "../../infrastructure/external/bedrock";
+import { createContentProcessingAdapter } from "../../infrastructure/external/llm/factory";
 
 export function createExecuteResearchUseCase(
   apiKey: string,
 ): ExecuteResearchUseCase {
   const apiRepository = new PerplexityResearchClient({ apiKey });
-  const contentRepository = new BedrockContentProcessingClient();
-  const domainService = new ResearchDomainService(contentRepository);
+  const contentPort = createContentProcessingAdapter();
+  const domainService = new ResearchDomainService(contentPort);
   return new ExecuteResearchUseCase(apiRepository, domainService);
 }
 
