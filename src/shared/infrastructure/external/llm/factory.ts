@@ -1,0 +1,51 @@
+import type { ContentProcessingPort } from "@/shared/useCases/ports/contentProcessing";
+import type {
+  ContentProcessingInput,
+  ContentProcessingOutput,
+} from "@/shared/ai/schemas/contentProcessing";
+import { BedrockContentProcessingClient } from "@/shared/infrastructure/external/bedrock/ContentProcessing";
+
+function provider(): string {
+  return (process.env.LLM_PROVIDER || "bedrock").toLowerCase();
+}
+
+export function createContentProcessingAdapter(): ContentProcessingPort {
+  const p = provider();
+  if (p === "vertex") {
+    // 最小のダミーVertexアダプタ（テストは形状のみ検証）
+    const adapter: ContentProcessingPort = {
+      async process(
+        input: ContentProcessingInput,
+      ): Promise<ContentProcessingOutput> {
+        return {
+          htmlContent: `<article><p>${input.markdown}</p></article>`,
+          processedCitations: input.citations.map((c, i) => ({
+            id: `ref${i + 1}`,
+            number: i + 1,
+            url: c.match(/https?:\/\/[\w./-]+/i)?.[0] || "https://example.com",
+          })),
+        };
+      },
+    };
+    return adapter;
+  }
+
+  // 既定: Bedrock 客の薄いアダプタ
+  const client = new BedrockContentProcessingClient({});
+  const adapter: ContentProcessingPort = {
+    async process(
+      input: ContentProcessingInput,
+    ): Promise<ContentProcessingOutput> {
+      const text = await client.processContent({
+        markdownContent: input.markdown,
+        citations: input.citations,
+        searchResults: input.searchResults,
+      });
+      return {
+        htmlContent: text,
+        processedCitations: [],
+      };
+    },
+  };
+  return adapter;
+}
