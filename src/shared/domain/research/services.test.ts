@@ -3,7 +3,7 @@ import { ResearchDomainService } from "./services";
 import type {
   PerplexityResponse,
   ResearchContext,
-} from "../../infrastructure/external/perplexity";
+} from "../../infrastructure/external/search/types";
 
 describe("ResearchDomainService (Domain Layer)", () => {
   let service: ResearchDomainService;
