@@ -8,6 +8,7 @@ import {
   expansionPolicy,
   jsonSchema,
 } from "@/shared/ai/prompts/utils";
+import { QueryOptimizationDomainService } from "@/shared/domain/queryOptimization/services";
 
 export class BedrockQueryOptimizationAdapter extends BaseBedrockClient {
   async optimizeQuery(
@@ -30,14 +31,15 @@ export class BedrockQueryOptimizationAdapter extends BaseBedrockClient {
       '  "confidence": number,',
       '  "suggestedFollowups": string[]',
     ];
+    const contextSummary =
+      QueryOptimizationDomainService.buildContextSummary(req);
     return [
       "### ROLE",
       "あなたは世界最高レベルのリサーチクエリ最適化専門家です。ユーザーの曖昧・不完全な質問を、効果的で検索効率の高いクエリへ変換します。",
       temporalContext(),
       "",
       "### CONTEXT",
-      // Domain側の要約はここでは省略（既存と差異最小）
-      req.userContext ? JSON.stringify(req.userContext) : "(なし)",
+      contextSummary || "(なし)",
       "",
       "### INPUT_QUERY",
       req.originalQuery,
