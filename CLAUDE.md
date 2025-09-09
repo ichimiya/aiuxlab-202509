@@ -25,6 +25,18 @@ AI時代の新しいリサーチ体験を探索する実験的POC
 - **Phase別段階実装**: 一気に全機能実装せず確実に
 - **未来感の演出**: 既存ツールとの差別化を体験で示す
 
+### Ports & Adapters（設計ルール）
+
+- UseCaseはPort（抽象）にのみ依存。外部サービスはAdapter（実装）で吸収。
+- 依存注入はFactoryを使用：
+  - LLM: `@/shared/infrastructure/external/llm/factory`
+  - Search: `@/shared/infrastructure/external/search/factory`
+  - STT: `@/shared/infrastructure/external/stt/factory`
+- プロンプトは `src/shared/ai/prompts/*` に集約（プロバイダ非依存）。
+- ログ/HTTPは `src/shared/lib/logger.ts` / `src/shared/api/http/http.ts` を使用。
+- 禁止（段階的廃止）: `@/shared/infrastructure/external/bedrock` バレルimport。
+  - 代替: 各Factory/Adapterを直接使用。
+
 ## POC開発方針
 
 ### シンプル実装の原則
@@ -49,6 +61,18 @@ AI時代の新しいリサーチ体験を探索する実験的POC
 - 必要最小限のエラーハンドリング
 - 型安全性の確保
 - テストカバレッジの維持
+
+## 依存注入と切替
+
+- `LLM_PROVIDER` / `SEARCH_PROVIDER` でプロバイダ切替（既定: bedrock / perplexity）。
+- 例（LLM）:
+
+```ts
+import { createContentProcessingAdapter } from "@/shared/infrastructure/external/llm/factory";
+const contentPort = createContentProcessingAdapter();
+```
+
+詳細: @docs/architecture.md / @docs/development.md
 
 ## 緊急時の対応
 

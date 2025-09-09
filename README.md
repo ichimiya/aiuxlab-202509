@@ -72,3 +72,35 @@ pnpm build
 ---
 
 _このPOCで未来のリサーチ体験を実証しましょう！_
+
+## Architecture Quick Guide（Ports & Adapters）
+
+- **原則**: UseCaseはPort（抽象）に依存し、実装はAdapter側（Infrastructure）に置く。依存注入はFactory経由。
+- **ファクトリ**
+  - LLM: `@/shared/infrastructure/external/llm/factory`
+    - `createContentProcessingAdapter()`, `createQueryOptimizationAdapter()`
+  - Search: `@/shared/infrastructure/external/search/factory`
+    - `createResearchRepository({ apiKey })`
+  - STT: `@/shared/infrastructure/external/stt/factory`
+    - `createSpeechToTextAdapter()`
+- **プロンプト**: `src/shared/ai/prompts/*` に共通化（プロバイダ非依存）。
+- **ログ/HTTP**: `src/shared/lib/logger.ts` / `src/shared/api/http/http.ts` を使用。
+
+### Importの禁止事項（移行中）
+
+- 次のバレル import は段階的廃止。新規コードは禁止。
+  - NG: `import { ... } from "@/shared/infrastructure/external/bedrock";`
+  - OK: Factory/Adapterを直接利用する。
+
+### 旧→新の移行例
+
+```ts
+// 旧: bedrock の直接依存
+import { BedrockContentProcessingClient } from "@/shared/infrastructure/external/bedrock";
+
+// 新: Factory/Port経由
+import { createContentProcessingAdapter } from "@/shared/infrastructure/external/llm/factory";
+const contentPort = createContentProcessingAdapter();
+```
+
+詳細は @docs/architecture.md / @docs/development.md を参照

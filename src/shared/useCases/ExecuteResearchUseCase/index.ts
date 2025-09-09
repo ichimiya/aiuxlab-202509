@@ -76,15 +76,15 @@ export class ExecuteResearchUseCase {
 // Factory Function (依存性注入の簡易版)
 // ========================================
 
-import { PerplexityResearchClient } from "../../infrastructure/external/perplexity";
-import { BedrockContentProcessingClient } from "../../infrastructure/external/bedrock";
+import { createResearchRepository } from "../../infrastructure/external/search/factory";
+import { createContentProcessingAdapter } from "../../infrastructure/external/llm/factory";
 
 export function createExecuteResearchUseCase(
   apiKey: string,
 ): ExecuteResearchUseCase {
-  const apiRepository = new PerplexityResearchClient({ apiKey });
-  const contentRepository = new BedrockContentProcessingClient();
-  const domainService = new ResearchDomainService(contentRepository);
+  const apiRepository = createResearchRepository({ apiKey });
+  const contentPort = createContentProcessingAdapter();
+  const domainService = new ResearchDomainService(contentPort);
   return new ExecuteResearchUseCase(apiRepository, domainService);
 }
 

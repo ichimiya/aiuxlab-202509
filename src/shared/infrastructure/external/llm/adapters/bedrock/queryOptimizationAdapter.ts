@@ -1,51 +1,29 @@
+import { BaseBedrockClient } from "@/shared/infrastructure/external/bedrock/base/BedrockClient";
 import type {
   QueryOptimizationRequest,
   OptimizationResult,
 } from "@/shared/domain/queryOptimization/services";
-import { QueryOptimizationDomainService } from "@/shared/domain/queryOptimization/services";
-import { BaseBedrockClient } from "../base/BedrockClient";
 import {
   temporalContext,
   expansionPolicy,
   jsonSchema,
 } from "@/shared/ai/prompts/utils";
+import { QueryOptimizationDomainService } from "@/shared/domain/queryOptimization/services";
 
-export class BedrockOptimizationAPIError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly status?: number,
-  ) {
-    super(message);
-    this.name = "BedrockOptimizationAPIError";
-  }
-}
-
-export class BedrockQueryOptimizationClient extends BaseBedrockClient {
+export class BedrockQueryOptimizationAdapter extends BaseBedrockClient {
   async optimizeQuery(
     req: QueryOptimizationRequest,
   ): Promise<OptimizationResult> {
-    QueryOptimizationDomainService.validateOriginalQuery(req.originalQuery);
     const prompt = this.buildPrompt(req);
+    const text = await this.invokePrompt(prompt);
     try {
-      const text = await this.invokePrompt(prompt);
-      try {
-        return JSON.parse(text) as OptimizationResult;
-      } catch {
-        throw new BedrockOptimizationAPIError(
-          "Invalid optimization response: Non-JSON text",
-        );
-      }
-    } catch (e) {
-      throw new BedrockOptimizationAPIError(
-        `Bedrock API error: ${e instanceof Error ? e.message : "Unknown error"}`,
-      );
+      return JSON.parse(text) as OptimizationResult;
+    } catch {
+      throw new Error("Invalid optimization response: Non-JSON text");
     }
   }
 
   private buildPrompt(req: QueryOptimizationRequest): string {
-    const contextSummary =
-      QueryOptimizationDomainService.buildContextSummary(req);
     const schema = [
       '  "optimizedQuery": string,',
       '  "addedAspects": string[],',
@@ -53,6 +31,8 @@ export class BedrockQueryOptimizationClient extends BaseBedrockClient {
       '  "confidence": number,',
       '  "suggestedFollowups": string[]',
     ];
+    const contextSummary =
+      QueryOptimizationDomainService.buildContextSummary(req);
     return [
       "### ROLE",
       "あなたは世界最高レベルのリサーチクエリ最適化専門家です。ユーザーの曖昧・不完全な質問を、効果的で検索効率の高いクエリへ変換します。",

@@ -4,10 +4,7 @@
  */
 
 import type { VoicePattern } from "../../api/generated/models";
-import type {
-  TranscribeClient,
-  TranscribeResponse,
-} from "../../infrastructure/external/transcribe";
+import type { SpeechToTextPort, STTResponse } from "../ports/speechToText";
 import type { VoiceDomainService } from "../../domain/voice/services";
 
 export interface VoiceCommandResult {
@@ -27,7 +24,7 @@ export interface RealTimeVoiceCallback {
 
 export class ProcessVoiceCommandUseCase {
   constructor(
-    private readonly transcribeClient: TranscribeClient,
+    private readonly transcribeClient: SpeechToTextPort,
     private readonly voiceDomainService: VoiceDomainService,
   ) {}
 
@@ -66,7 +63,7 @@ export class ProcessVoiceCommandUseCase {
       // TranscribeClientのイベントハンドラーを設定（新API）
       this.transcribeClient.setEventHandlers({
         onTranscriptionResult: (text: string, isFinal: boolean) => {
-          const transcribeResponse: TranscribeResponse = {
+          const transcribeResponse: STTResponse = {
             transcript: text,
             confidence: 0.9, // RT出力は信頼度がないため暫定値
             isPartial: !isFinal,
@@ -127,7 +124,7 @@ export class ProcessVoiceCommandUseCase {
    * Transcribe応答を処理（内部メソッド）
    */
   private processTranscribeResponse(
-    transcribeResponse: TranscribeResponse,
+    transcribeResponse: STTResponse,
   ): VoiceCommandResult {
     const {
       transcript,

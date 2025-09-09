@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach, type Mocked } from "vitest";
 import { ProcessVoiceCommandUseCase } from "./index";
-import { TranscribeClient } from "../../infrastructure/external/transcribe";
+import type { SpeechToTextPort } from "../ports/speechToText";
 import { VoiceDomainService } from "../../domain/voice/services";
 
 // Mocks
-vi.mock("../../infrastructure/external/transcribe");
+// Portベースに変更したため、モジュールモックは不要
 vi.mock("../../domain/voice/services");
 
 describe("ProcessVoiceCommandUseCase", () => {
   let useCase: ProcessVoiceCommandUseCase;
-  let mockTranscribeClient: Mocked<TranscribeClient>;
+  let mockTranscribeClient: Mocked<SpeechToTextPort>;
   let mockVoiceDomainService: Mocked<VoiceDomainService>;
 
   beforeEach(() => {
@@ -21,7 +21,7 @@ describe("ProcessVoiceCommandUseCase", () => {
       stopTranscription: vi.fn(),
       setEventHandlers: vi.fn(),
       isActive: false,
-    } as unknown as Mocked<TranscribeClient>;
+    } as unknown as Mocked<SpeechToTextPort>;
 
     mockVoiceDomainService = {
       parseVoiceCommand: vi.fn(),

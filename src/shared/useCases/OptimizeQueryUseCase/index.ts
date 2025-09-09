@@ -31,9 +31,9 @@ export class OptimizeQueryUseCase {
 }
 
 // Factory Function
-import { BedrockQueryOptimizationClient } from "@/shared/infrastructure/external/bedrock";
+import { createQueryOptimizationAdapter } from "@/shared/infrastructure/external/llm/factory";
 
 export function createOptimizeQueryUseCase(): OptimizeQueryUseCase {
-  const repo = new BedrockQueryOptimizationClient();
+  const repo = createQueryOptimizationAdapter();
   return new OptimizeQueryUseCase(repo);
 }

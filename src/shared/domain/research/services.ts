@@ -15,7 +15,7 @@ import type {
   PerplexitySearchResult,
   ResearchContext,
 } from "../../infrastructure/external/perplexity";
-import type { IContentProcessingRepository } from "../../infrastructure/external/bedrock";
+import type { ContentProcessingPort } from "../../useCases/ports/contentProcessing";
 
 // DOMPurifyの初期化（環境に応じて分岐）
 let purify: typeof DOMPurify;
@@ -60,9 +60,7 @@ export interface ProcessedCitation {
 // ========================================
 
 export class ResearchDomainService {
-  constructor(
-    private readonly contentRepository?: IContentProcessingRepository,
-  ) {}
+  constructor(private readonly contentPort?: ContentProcessingPort) {}
   /**
    * Perplexity応答をドメインモデルに変換
    */
@@ -185,7 +183,7 @@ export class ResearchDomainService {
   async enhanceResearchWithProcessedContent(
     research: Research,
   ): Promise<Research> {
-    if (!this.contentRepository || !research.results) {
+    if (!this.contentPort || !research.results) {
       return research;
     }
 
@@ -225,31 +223,28 @@ export class ResearchDomainService {
     citations: string[] = [],
     searchResults: Array<{ title: string; url: string }> = [],
   ): Promise<ProcessedContent> {
-    if (!this.contentRepository) {
+    if (!this.contentPort) {
       // フォールバック処理
       return this.fallbackProcessing(markdownContent, citations, searchResults);
     }
 
     try {
-      // 1. Infrastructure層でLLM処理を実行
-      const llmResponse = await this.contentRepository.processContent({
-        markdownContent,
+      // 1. Port経由で処理（構造化出力）
+      const output = await this.contentPort.process({
+        markdown: markdownContent,
         citations,
         searchResults,
       });
 
-      // 2. Domain層でレスポンスをパース・サニタイズ
-      const parsedResponse = this.parseLLMResponse(llmResponse);
-
-      // 3. HTMLをサニタイズ（セマンティック要素を許可）
+      // 2. HTMLをサニタイズ（セマンティック要素を許可）
       const sanitizedHtml = purify.sanitize(
-        parsedResponse.htmlContent,
+        output.htmlContent,
         SANITIZE_OPTIONS,
       );
 
       return {
         htmlContent: sanitizedHtml,
-        processedCitations: parsedResponse.processedCitations,
+        processedCitations: output.processedCitations,
       };
     } catch (error) {
       console.error("Content processing error:", error);

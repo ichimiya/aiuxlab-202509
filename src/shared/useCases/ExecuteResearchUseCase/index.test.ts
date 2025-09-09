@@ -6,26 +6,24 @@ import type {
   PerplexityResponse,
   ResearchContext,
 } from "../../infrastructure/external/perplexity";
-import type { IContentProcessingRepository } from "../../infrastructure/external/bedrock";
+import type { ContentProcessingPort } from "../ports/contentProcessing";
 import { ResearchDomainService } from "../../domain/research/services";
 
 describe("ExecuteResearchUseCase (Application Layer)", () => {
   let useCase: ExecuteResearchUseCase;
   let mockRepository: IResearchAPIRepository;
-  let mockContentRepository: IContentProcessingRepository;
+  let mockContentPort: ContentProcessingPort;
 
   beforeEach(() => {
     mockRepository = {
       search: vi.fn(),
     };
 
-    mockContentRepository = {
-      processContent: vi.fn(),
+    mockContentPort = {
+      process: vi.fn(),
     };
 
-    const researchDomainService = new ResearchDomainService(
-      mockContentRepository,
-    );
+    const researchDomainService = new ResearchDomainService(mockContentPort);
     useCase = new ExecuteResearchUseCase(mockRepository, researchDomainService);
   });
 
@@ -64,20 +62,18 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
       };
 
       vi.mocked(mockRepository.search).mockResolvedValueOnce(mockResponse);
-      vi.mocked(mockContentRepository.processContent).mockResolvedValueOnce(
-        JSON.stringify({
-          htmlContent: "<p><strong>テスト結果のコンテンツ</strong></p>",
-          processedCitations: [
-            {
-              id: "ref1",
-              number: 1,
-              url: "https://example.com",
-              title: "テスト記事",
-              domain: "example.com",
-            },
-          ],
-        }),
-      );
+      vi.mocked(mockContentPort.process).mockResolvedValueOnce({
+        htmlContent: "<p><strong>テスト結果のコンテンツ</strong></p>",
+        processedCitations: [
+          {
+            id: "ref1",
+            number: 1,
+            url: "https://example.com",
+            title: "テスト記事",
+            domain: "example.com",
+          },
+        ],
+      });
 
       const context: ResearchContext = {
         query: "テストクエリ",
@@ -87,7 +83,7 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
       const result = await useCase.execute(context);
 
       expect(mockRepository.search).toHaveBeenCalledWith(context);
-      expect(mockContentRepository.processContent).toHaveBeenCalled();
+      expect(mockContentPort.process).toHaveBeenCalled();
       expect(result).toMatchObject({
         id: "test-research-id",
         query: "テストクエリ",
