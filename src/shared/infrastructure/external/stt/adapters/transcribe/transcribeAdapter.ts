@@ -3,7 +3,7 @@ import type {
   STTEventHandlers,
   STTResponse,
 } from "@/shared/useCases/ports/speechToText";
-import { TranscribeClient } from "@/shared/infrastructure/external/transcribe";
+import { TranscribeClient } from "./internal";
 
 export class TranscribeAdapter implements SpeechToTextPort {
   private readonly client: TranscribeClient;
