@@ -48,7 +48,8 @@ export class TranscribeAdapter implements SpeechToTextPort {
     return this.client.stop();
   }
   // 単純化のため未対応
-  transcribeAudio(_audio: Blob): Promise<STTResponse> {
+  transcribeAudio(audio: Blob): Promise<STTResponse> {
+    void audio;
     return Promise.reject(new Error("not implemented"));
   }
 }

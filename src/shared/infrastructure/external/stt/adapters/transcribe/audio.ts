@@ -1,10 +1,8 @@
-type AcquireOptions = { sampleRate?: number };
-
 let ac: AudioContext | null = null;
 let stream: MediaStream | null = null;
 let ref = 0;
 
-async function ensureAudio(_opts?: AcquireOptions) {
+async function ensureAudio() {
   if (ac && stream) return { audioContext: ac, stream };
   const AnyWin = window as unknown as {
     webkitAudioContext?: typeof AudioContext;
@@ -20,9 +18,9 @@ async function ensureAudio(_opts?: AcquireOptions) {
 
 export function getAudioIO() {
   return {
-    async acquire(opts?: AcquireOptions) {
+    async acquire() {
       ref += 1;
-      return ensureAudio(opts);
+      return ensureAudio();
     },
     async release() {
       ref = Math.max(0, ref - 1);
