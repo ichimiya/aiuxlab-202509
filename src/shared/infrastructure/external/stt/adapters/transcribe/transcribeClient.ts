@@ -20,7 +20,7 @@ export type SimpleSttHandlers = {
   ) => void;
 };
 
-export class SimpleTranscribeClient {
+export class TranscribeClient {
   private client: TranscribeStreamingClient | null = null;
   private audioContext: AudioContext | null = null;
   private mediaStream: MediaStream | null = null;

@@ -1,11 +1,7 @@
 import type { SpeechToTextPort } from "@/shared/useCases/ports/speechToText";
 import { TranscribeAdapter } from "./adapters/transcribe/transcribeAdapter";
-import { SimpleTranscribeAdapter } from "./simple/simpleAdapter";
+// simple実装を正式パスへ統合したため、旧simpleは廃止
 
 export function createSpeechToTextAdapter(): SpeechToTextPort {
-  const engine = (process.env.NEXT_PUBLIC_STT_ENGINE || "")
-    .toString()
-    .toLowerCase();
-  if (engine === "simple") return new SimpleTranscribeAdapter();
   return new TranscribeAdapter();
 }

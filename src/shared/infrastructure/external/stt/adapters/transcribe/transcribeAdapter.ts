@@ -3,84 +3,52 @@ import type {
   STTEventHandlers,
   STTResponse,
 } from "@/shared/useCases/ports/speechToText";
-import { TranscribeClient } from "./internal";
+import { TranscribeClient } from "./transcribeClient";
 
 export class TranscribeAdapter implements SpeechToTextPort {
-  private readonly client: TranscribeClient;
-  constructor(config?: ConstructorParameters<typeof TranscribeClient>[0]) {
-    const region =
-      config?.region || process.env.NEXT_PUBLIC_AWS_REGION || "us-east-1";
-    const base = {
-      region,
-      languageCode: (config?.languageCode as "ja-JP" | "en-US") || "ja-JP",
-      mediaEncoding:
-        (config?.mediaEncoding as "pcm" | "ogg-opus" | "flac") || "pcm",
-      mediaSampleRateHertz: config?.mediaSampleRateHertz || 16000,
-      accessKeyId: config?.accessKeyId,
-      secretAccessKey: config?.secretAccessKey,
-    } as const;
-
+  private client: TranscribeClient;
+  constructor() {
+    const region = process.env.NEXT_PUBLIC_AWS_REGION || "us-east-1";
+    const lang = (process.env.NEXT_PUBLIC_STT_LANG || "ja-JP") as
+      | "ja-JP"
+      | "en-US";
+    const chunkMs =
+      Number(process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_CHUNK_MS || "") || 60;
     const lowLatency =
-      (process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_LOW_LATENCY || "") !== "";
-    const targetChunkMs = parseInt(
-      process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_CHUNK_MS || "",
-      10,
-    );
-    const opts: NonNullable<ConstructorParameters<typeof TranscribeClient>[1]> =
-      {};
-    if (lowLatency) opts.chunkWaitMs = 5;
-    if (!Number.isNaN(targetChunkMs) && targetChunkMs > 0) {
-      opts.targetChunkMs = targetChunkMs;
-    }
-    const stabilityEnv = (
-      process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_STABILITY || ""
-    )
-      .toString()
-      .toLowerCase();
-    const stability =
-      stabilityEnv === "off" || stabilityEnv === "none"
-        ? "off"
-        : stabilityEnv === "low"
-          ? "low"
-          : stabilityEnv === "medium"
-            ? "medium"
-            : stabilityEnv === "high"
-              ? "high"
-              : undefined;
-    if (stability) opts.stability = stability;
-
-    // Restart-on-final 機能は削除（常に継続セッション）
-    this.client = new TranscribeClient(
-      base,
-      Object.keys(opts).length ? opts : undefined,
-    );
+      (process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_LOW_LATENCY || "1") !== "";
+    this.client = new TranscribeClient({
+      region,
+      languageCode: lang,
+      chunkMs,
+      lowLatency,
+    });
   }
 
   get isActive(): boolean {
-    return this.client.isActive;
+    return true;
   }
-
   checkSupport(): boolean {
     return this.client.checkSupport();
   }
-
   requestPermission(): Promise<boolean> {
     return this.client.requestPermission();
   }
-
   setEventHandlers(handlers: STTEventHandlers): void {
-    this.client.setEventHandlers(handlers);
+    this.client.setHandlers({
+      onResult: (t, f) => handlers.onTranscriptionResult?.(t, f),
+      onError: (m) =>
+        handlers.onError?.({ error: "transcription-failed", message: m }),
+      onConnectionStatusChange: (s) => handlers.onConnectionStatusChange?.(s),
+    });
   }
-
   startRealTimeTranscription(): Promise<void> {
-    return this.client.startRealTimeTranscription();
+    return this.client.start();
   }
-
   stopTranscription(): Promise<void> {
-    return this.client.stopTranscription();
+    return this.client.stop();
   }
-
-  transcribeAudio(audio: Blob): Promise<STTResponse> {
-    return this.client.transcribeAudio(audio);
+  // 単純化のため未対応
+  transcribeAudio(_audio: Blob): Promise<STTResponse> {
+    return Promise.reject(new Error("not implemented"));
   }
 }
