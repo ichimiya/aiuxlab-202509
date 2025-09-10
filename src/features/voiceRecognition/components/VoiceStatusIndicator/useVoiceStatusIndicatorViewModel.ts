@@ -9,7 +9,7 @@ interface StatusConfig {
 }
 
 export function useVoiceStatusIndicatorViewModel() {
-  const { isListening } = useResearchStore();
+  const { isListening, partialTranscript } = useResearchStore();
 
   // 現在の状態を計算
   const currentStatus: VoiceRecognitionStatus = useMemo(() => {
@@ -51,7 +51,10 @@ export function useVoiceStatusIndicatorViewModel() {
   // UI表示用の状態
   const displayState = useMemo(
     () => ({
-      statusText: config.text,
+      statusText:
+        currentStatus === "listening" && partialTranscript
+          ? partialTranscript
+          : config.text,
       containerClassName: `flex items-center space-x-2 p-3 rounded-lg bg-${config.color}-50 dark:bg-${config.color}-900/20 border border-${config.color}-200 dark:border-${config.color}-800`,
       indicatorClassName: `w-3 h-3 rounded-full bg-${config.color}-500 ${
         config.showPulse ? "animate-pulse" : ""
@@ -59,7 +62,7 @@ export function useVoiceStatusIndicatorViewModel() {
       textClassName: `text-sm font-medium text-${config.color}-700 dark:text-${config.color}-300`,
       isVisible: true, // 常に表示
     }),
-    [config],
+    [config, currentStatus, partialTranscript],
   );
 
   return {

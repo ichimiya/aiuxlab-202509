@@ -1,10 +1,16 @@
-import { useCallback, useMemo, useEffect, useState } from "react";
+import { useCallback, useMemo, useEffect, useState, startTransition } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
 import { createProcessVoiceCommandUseCase } from "@/shared/useCases/ProcessVoiceCommandUseCase/factory";
 import type { VoiceButtonState } from "../../types";
 
 export function useVoiceRecognitionButtonViewModel() {
-  const { isListening, setIsListening, setVoiceCommand } = useResearchStore();
+  const {
+    isListening,
+    setIsListening,
+    setVoiceCommand,
+    setPartialTranscript,
+    clearPartialTranscript,
+  } = useResearchStore();
 
   // ハイドレーション対応の状態管理
   const [isMounted, setIsMounted] = useState(false);
@@ -13,6 +19,11 @@ export function useVoiceRecognitionButtonViewModel() {
   const voiceUseCase = useMemo(() => {
     return createProcessVoiceCommandUseCase();
   }, []);
+
+  // 自動停止を環境変数で制御（既定: false）
+  const autoStop =
+    (process.env.NEXT_PUBLIC_VOICE_AUTO_STOP || "").toLowerCase() === "1" ||
+    (process.env.NEXT_PUBLIC_VOICE_AUTO_STOP || "").toLowerCase() === "true";
 
   // マウント後に状態を更新
   useEffect(() => {
@@ -27,6 +38,18 @@ export function useVoiceRecognitionButtonViewModel() {
   }, [voiceUseCase, isMounted]);
 
   const hasPermission = true; // 実際の実装では権限チェック
+
+  // ブラウザアイドル時/次ティックに処理を後回し
+  const defer = useCallback((fn: () => void) => {
+    const ric = (globalThis as any).requestIdleCallback as
+      | ((cb: () => void, opts?: { timeout?: number }) => number)
+      | undefined;
+    if (typeof ric === "function") {
+      ric(() => fn(), { timeout: 200 });
+    } else {
+      setTimeout(fn, 0);
+    }
+  }, []);
 
   // ボタン状態の計算
   const buttonState: VoiceButtonState = useMemo(() => {
@@ -76,11 +99,17 @@ export function useVoiceRecognitionButtonViewModel() {
               console.log("🎯 音声認識結果:", text, "Final:", isFinal);
 
               if (isFinal) {
-                // VoiceDomainServiceでパターン解析
-                const domainService = voiceUseCase["voiceDomainService"];
-                if (domainService) {
-                  const parsedResult = domainService.parseVoiceCommand(text);
+                // 最終結果は即時にUIへ反映（同期コスト最小化）
+                startTransition(() => {
+                  setVoiceCommand(text);
+                  clearPartialTranscript();
+                });
 
+                // ドメイン解析はアイドル/次ティックへ後回し（メインスレッドを詰まらせない）
+                defer(() => {
+                  const domainService = voiceUseCase["voiceDomainService"];
+                  if (!domainService) return;
+                  const parsedResult = domainService.parseVoiceCommand(text);
                   if (parsedResult.pattern && parsedResult.confidence > 0.5) {
                     console.log(
                       "✅ 音声コマンド認識成功:",
@@ -88,37 +117,53 @@ export function useVoiceRecognitionButtonViewModel() {
                       "パターン:",
                       parsedResult.pattern,
                     );
-                    setVoiceCommand(text);
-
-                    // 認識成功したら自動的に停止
-                    setIsListening(false);
-                    if (voiceUseCase.isProcessing) {
-                      voiceUseCase
-                        .stopProcessing()
-                        .catch((err) =>
-                          console.error(
-                            "Failed to stop after recognition:",
-                            err,
-                          ),
-                        );
+                    if (autoStop) {
+                      setIsListening(false);
+                      if (voiceUseCase.isProcessing) {
+                        voiceUseCase
+                          .stopProcessing()
+                          .catch((err) =>
+                            console.error(
+                              "Failed to stop after recognition:",
+                              err,
+                            ),
+                          );
+                      }
                     }
                   }
-                }
+                });
               } else {
                 console.log("📝 途中結果:", text);
+                setPartialTranscript(text);
               }
             },
             onError: (error) => {
               console.error("AWS Transcribe Error:", error);
-              setIsListening(false);
+              const isSilenceTimeout =
+                error.error === "network" &&
+                typeof error.message === "string" &&
+                error.message.toLowerCase().includes("no audio activity");
 
-              // ユーザーに分かりやすいエラーメッセージを表示
-              if (error.error === "transcription-failed") {
-                console.warn("🚨 音声認識エラー:", error.message);
-              } else if (error.error === "not-allowed") {
-                console.warn("🚨 マイク権限エラー:", error.message);
+              if (isSilenceTimeout && isListening) {
+                // 自動再接続（UIは継続状態のまま）
+                voiceUseCase
+                  .stopProcessing()
+                  .catch(() => void 0)
+                  .then(() => voiceUseCase.startRealTimeTranscription())
+                  .catch((err) => {
+                    console.error("Auto-reconnect failed:", err);
+                    setIsListening(false);
+                  });
               } else {
-                console.warn("🚨 音声認識サービスエラー:", error.message);
+                setIsListening(false);
+                // ユーザーに分かりやすいエラーメッセージを表示
+                if (error.error === "transcription-failed") {
+                  console.warn("🚨 音声認識エラー:", error.message);
+                } else if (error.error === "not-allowed") {
+                  console.warn("🚨 マイク権限エラー:", error.message);
+                } else {
+                  console.warn("🚨 音声認識サービスエラー:", error.message);
+                }
               }
             },
             onConnectionStatusChange: (status) => {
@@ -131,10 +176,12 @@ export function useVoiceRecognitionButtonViewModel() {
         voiceUseCase.startRealTimeTranscription().catch((err) => {
           console.error("Failed to start voice recognition:", err);
           setIsListening(false);
+          clearPartialTranscript();
         });
       } catch (error) {
         console.error("Failed to start voice recognition:", error);
         setIsListening(false);
+        clearPartialTranscript();
       }
     }
   }, [isListening, voiceUseCase, setIsListening, setVoiceCommand]);
