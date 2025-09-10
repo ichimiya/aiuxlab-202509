@@ -101,6 +101,11 @@ export class TranscribeClient {
   private readonly NO_AUDIO_ERROR_MS = 30000; // 30秒無音でエラー通知
   private lastRestartAt = 0;
   private restarting = false;
+  // VAD/Utterance tracking
+  private vadIsSpeech = false;
+  private vadLastActiveAt = Date.now();
+  private utteranceActive = false;
+  private utteranceChunkSent = false;
 
   // 統計情報
   private stats: AudioProcessingStats = {
@@ -292,9 +297,37 @@ export class TranscribeClient {
       let currentMax = 0;
       for (let i = 0; i < channelData.length; i++)
         currentMax = Math.max(currentMax, Math.abs(channelData[i]));
-      // metrics update omitted
+      const now = Date.now();
+      // 動的VADしきい値（envで上書き可）
+      const vadThresholdEnv = Number(
+        (process.env.NEXT_PUBLIC_VOICE_VAD_THRESHOLD || "").toString(),
+      );
+      const vadThreshold =
+        Number.isFinite(vadThresholdEnv) && vadThresholdEnv > 0
+          ? vadThresholdEnv
+          : this.SILENCE_THRESHOLD;
+      if (currentMax > vadThreshold) {
+        this.lastAudioTime = now;
+        if (!this.vadIsSpeech) {
+          this.vadIsSpeech = true;
+          this.vadLastActiveAt = now;
+          this.utteranceActive = true;
+          this.utteranceChunkSent = false;
+          voicePerf.mark("stt.vad.speech_start");
+        }
+      } else {
+        const vadEndEnv = Number(
+          (process.env.NEXT_PUBLIC_VOICE_VAD_END_MS || "").toString(),
+        );
+        const vadEndMs =
+          Number.isFinite(vadEndEnv) && vadEndEnv >= 0 ? vadEndEnv : 250;
+        if (this.vadIsSpeech && now - this.lastAudioTime >= vadEndMs) {
+          this.vadIsSpeech = false;
+          this.utteranceActive = false;
+          voicePerf.mark("stt.vad.speech_end");
+        }
+      }
       this.sendAudioData(channelData);
-      if (currentMax > this.SILENCE_THRESHOLD) this.lastAudioTime = Date.now();
     };
     source.connect(this.workletNode);
   }
@@ -457,6 +490,10 @@ export class TranscribeClient {
             voicePerf.mark("stt.session.first_chunk_sent");
             firstChunkSent = false;
           }
+          if (self.utteranceActive && !self.utteranceChunkSent) {
+            voicePerf.mark("stt.utterance.first_chunk_sent");
+            self.utteranceChunkSent = true;
+          }
           yield {
             AudioEvent: { AudioChunk: toSend },
           } as unknown as AudioStream;
@@ -475,6 +512,11 @@ export class TranscribeClient {
           if (firstChunkSent) {
             voicePerf.mark("stt.session.first_chunk_sent");
             firstChunkSent = false;
+          }
+          voicePerf.mark("stt.audio.flush_on_idle");
+          if (self.utteranceActive && !self.utteranceChunkSent) {
+            voicePerf.mark("stt.utterance.first_chunk_sent");
+            self.utteranceChunkSent = true;
           }
           yield {
             AudioEvent: { AudioChunk: toSend },
@@ -568,6 +610,7 @@ export class TranscribeClient {
       const now = Date.now();
       // 長時間無音（安全網）
       if (now - this.lastAudioTime > this.NO_AUDIO_ERROR_MS) {
+        voicePerf.mark("stt.keepalive.no_audio_error");
         this.eventHandlers?.onError?.({
           error: "network",
           message: "No audio activity detected",
