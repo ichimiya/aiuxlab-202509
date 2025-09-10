@@ -106,6 +106,7 @@ export class TranscribeClient {
   private vadLastActiveAt = Date.now();
   private utteranceActive = false;
   private utteranceChunkSent = false;
+  private readonly simpleMode: boolean;
 
   // 統計情報
   private stats: AudioProcessingStats = {
@@ -119,6 +120,10 @@ export class TranscribeClient {
     private readonly opts?: TranscribeClientOptions,
   ) {
     this.config = config;
+    const sm = (process.env.NEXT_PUBLIC_STT_SIMPLE || "")
+      .toString()
+      .toLowerCase();
+    this.simpleMode = sm === "1" || sm === "true" || sm === "on";
   }
 
   // 外部アダプタ互換用: 稼働状態を公開
@@ -294,41 +299,43 @@ export class TranscribeClient {
     );
     this.workletNode.port.onmessage = (event: MessageEvent) => {
       const channelData = new Float32Array(event.data as ArrayBufferLike);
-      let currentMax = 0;
-      for (let i = 0; i < channelData.length; i++)
-        currentMax = Math.max(currentMax, Math.abs(channelData[i]));
-      const now = Date.now();
-      // 動的VADしきい値（envで上書き可）
-      const vadThresholdRaw = process.env.NEXT_PUBLIC_VOICE_VAD_THRESHOLD;
-      const vadThresholdNum =
-        vadThresholdRaw !== undefined && vadThresholdRaw !== ""
-          ? Number(vadThresholdRaw)
-          : Number.NaN;
-      const vadThreshold =
-        Number.isFinite(vadThresholdNum) && vadThresholdNum > 0
-          ? vadThresholdNum
-          : this.SILENCE_THRESHOLD;
-      if (currentMax > vadThreshold) {
-        this.lastAudioTime = now;
-        if (!this.vadIsSpeech) {
-          this.vadIsSpeech = true;
-          this.vadLastActiveAt = now;
-          this.utteranceActive = true;
-          this.utteranceChunkSent = false;
-          voicePerf.mark("stt.vad.speech_start");
-        }
-      } else {
-        const vadEndRaw = process.env.NEXT_PUBLIC_VOICE_VAD_END_MS;
-        const vadEndNum =
-          vadEndRaw !== undefined && vadEndRaw !== ""
-            ? Number(vadEndRaw)
+      if (!this.simpleMode) {
+        let currentMax = 0;
+        for (let i = 0; i < channelData.length; i++)
+          currentMax = Math.max(currentMax, Math.abs(channelData[i]));
+        const now = Date.now();
+        // 動的VADしきい値（envで上書き可）
+        const vadThresholdRaw = process.env.NEXT_PUBLIC_VOICE_VAD_THRESHOLD;
+        const vadThresholdNum =
+          vadThresholdRaw !== undefined && vadThresholdRaw !== ""
+            ? Number(vadThresholdRaw)
             : Number.NaN;
-        const vadEndMs =
-          Number.isFinite(vadEndNum) && vadEndNum > 0 ? vadEndNum : 250;
-        if (this.vadIsSpeech && now - this.lastAudioTime >= vadEndMs) {
-          this.vadIsSpeech = false;
-          this.utteranceActive = false;
-          voicePerf.mark("stt.vad.speech_end");
+        const vadThreshold =
+          Number.isFinite(vadThresholdNum) && vadThresholdNum > 0
+            ? vadThresholdNum
+            : this.SILENCE_THRESHOLD;
+        if (currentMax > vadThreshold) {
+          this.lastAudioTime = now;
+          if (!this.vadIsSpeech) {
+            this.vadIsSpeech = true;
+            this.vadLastActiveAt = now;
+            this.utteranceActive = true;
+            this.utteranceChunkSent = false;
+            voicePerf.mark("stt.vad.speech_start");
+          }
+        } else {
+          const vadEndRaw = process.env.NEXT_PUBLIC_VOICE_VAD_END_MS;
+          const vadEndNum =
+            vadEndRaw !== undefined && vadEndRaw !== ""
+              ? Number(vadEndRaw)
+              : Number.NaN;
+          const vadEndMs =
+            Number.isFinite(vadEndNum) && vadEndNum > 0 ? vadEndNum : 250;
+          if (this.vadIsSpeech && now - this.lastAudioTime >= vadEndMs) {
+            this.vadIsSpeech = false;
+            this.utteranceActive = false;
+            voicePerf.mark("stt.vad.speech_end");
+          }
         }
       }
       this.sendAudioData(channelData);
@@ -337,7 +344,7 @@ export class TranscribeClient {
   }
 
   private sendAudioData(audioData: Float32Array): void {
-    if (this.connectionStatus !== "connected") return;
+    if (!this.simpleMode && this.connectionStatus !== "connected") return;
     const pcmData = this.convertFloat32ToPCM16(audioData);
     this.audioBuffer.push(pcmData);
   }
@@ -371,7 +378,8 @@ export class TranscribeClient {
       ...baseParams,
     };
     // 部分結果安定化（環境によって調整可能）
-    const stability = this.opts?.stability ?? "medium";
+    const stability =
+      this.opts?.stability ?? (this.simpleMode ? "low" : "medium");
     if (stability && stability !== "off") {
       params.EnablePartialResultsStabilization = true;
       params.PartialResultsStability = stability;
@@ -449,9 +457,10 @@ export class TranscribeClient {
     const generator = async function* (
       self: TranscribeClient,
     ): AsyncGenerator<AudioStream, void, unknown> {
+      const defaultTarget = self.simpleMode ? 60 : 100;
       const targetMs = Math.max(
         20,
-        Math.min(self.opts?.targetChunkMs ?? 100, 1000),
+        Math.min(self.opts?.targetChunkMs ?? defaultTarget, 1000),
       );
       const sr = self.config.mediaSampleRateHertz || 16000;
       const bytesPerMs = (sr * 2) / 1000; // mono 16-bit PCM
@@ -462,11 +471,11 @@ export class TranscribeClient {
       let lastAccumulatedAt = Date.now();
 
       let firstChunkSent = true;
-      while (
-        self.isTranscribing &&
-        self.connectionStatus === "connected" &&
-        !self.stopping
-      ) {
+      while (self.isTranscribing && !self.stopping) {
+        if (!self.simpleMode && self.connectionStatus !== "connected") {
+          await new Promise((r) => setTimeout(r, 10));
+          continue;
+        }
         const next = self.audioBuffer.shift();
         if (next && next.length > 0) {
           if (!self.accumulatedBuffer) self.accumulatedBuffer = next;
