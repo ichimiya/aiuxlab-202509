@@ -17,9 +17,11 @@ vi.mock("openai", () => {
   };
 });
 
-describe("search/adapters/perplexity/researchAdapter", () => {
+describe("shared/adapters/search/perplexity/researchAdapter", () => {
   it("PerplexityResearchAdapter をエクスポートする", async () => {
-    const mod = (await import("./researchAdapter")) as unknown as {
+    const mod = (await import(
+      "@/shared/adapters/search/perplexity/researchAdapter"
+    )) as unknown as {
       PerplexityResearchAdapter: unknown;
     };
     expect(typeof mod.PerplexityResearchAdapter).toBe("function");

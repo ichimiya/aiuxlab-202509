@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { getAudioIO } from "@/shared/infrastructure/external/stt/adapters/transcribe/audio";
+import { getAudioIO } from "@/shared/infrastructure/browser/audio";
 import { useResearchStore } from "@/shared/stores/researchStore";
 
 export function useVoiceLevelMeterViewModel() {
