@@ -3,8 +3,8 @@ import type {
   ContentProcessingInput,
   ContentProcessingOutput,
 } from "@/shared/ai/schemas/contentProcessing";
-import { BedrockContentProcessingAdapter } from "@/shared/infrastructure/external/llm/adapters/bedrock/contentProcessingAdapter";
-import { BedrockQueryOptimizationAdapter } from "@/shared/infrastructure/external/llm/adapters/bedrock/queryOptimizationAdapter";
+import { BedrockContentProcessingAdapter } from "@/shared/adapters/llm/bedrock/contentProcessingAdapter";
+import { BedrockQueryOptimizationAdapter } from "@/shared/adapters/llm/bedrock/queryOptimizationAdapter";
 
 function provider(): string {
   return (process.env.LLM_PROVIDER || "bedrock").toLowerCase();

@@ -1,11 +1,11 @@
 import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { getAudioIO } from "@/shared/infrastructure/external/transcribe/audio";
+import { getAudioIO } from "@/shared/infrastructure/browser/audio";
 import { useResearchStore } from "@/shared/stores/researchStore";
 
 export function useVoiceLevelMeterViewModel() {
   const { isListening } = useResearchStore();
   const [volume, setVolume] = useState(0);
-  const [audioContext, setAudioContext] = useState<AudioContext | null>(null);
+  // AudioContextは共有管理のためローカルでは保持しない
   const [stream, setStream] = useState<MediaStream | null>(null);
   const [, setAnalyser] = useState<AnalyserNode | null>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -22,7 +22,7 @@ export function useVoiceLevelMeterViewModel() {
       analyserNode.smoothingTimeConstant = 0.8;
       source.connect(analyserNode);
 
-      setAudioContext(context);
+      // AudioContextは共有のためここでは保持しない
       setStream(sharedStream);
       setAnalyser(analyserNode);
 
@@ -64,7 +64,6 @@ export function useVoiceLevelMeterViewModel() {
         .release()
         .catch(() => void 0);
     }
-    setAudioContext(null);
     setStream(null);
 
     setAnalyser(null);

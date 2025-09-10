@@ -1,4 +1,4 @@
-import { PerplexityResearchAdapter } from "./adapters/perplexity/researchAdapter";
+import { PerplexityResearchAdapter } from "@/shared/adapters/search/perplexity/researchAdapter";
 
 function provider(): string {
   return (process.env.SEARCH_PROVIDER || "perplexity").toLowerCase();

@@ -7,7 +7,7 @@ import type { Research } from "../../api/generated/models";
 import type {
   IResearchAPIRepository,
   ResearchContext,
-} from "../../infrastructure/external/perplexity";
+} from "../../infrastructure/external/search/types";
 import { ResearchDomainService } from "../../domain/research/services";
 import { ApplicationError } from "../errors";
 
@@ -92,4 +92,4 @@ export function createExecuteResearchUseCase(
 // エクスポート
 // ========================================
 
-export type { ResearchContext } from "../../infrastructure/external/perplexity";
+export type { ResearchContext } from "../../infrastructure/external/search/types";

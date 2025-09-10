@@ -1,4 +1,4 @@
-import { BaseBedrockClient } from "@/shared/infrastructure/external/bedrock/base/BedrockClient";
+import { BaseBedrockClient } from "@/shared/infrastructure/clients/bedrock/BedrockClient";
 import type {
   QueryOptimizationRequest,
   OptimizationResult,

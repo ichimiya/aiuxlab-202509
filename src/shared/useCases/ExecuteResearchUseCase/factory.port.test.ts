@@ -13,19 +13,18 @@ vi.mock("@/shared/infrastructure/external/llm/factory", () => {
   };
 });
 
-vi.mock("@/shared/infrastructure/external/perplexity", () => {
-  class PerplexityResearchClient {
-    // eslint-disable-next-line @typescript-eslint/no-unused-vars
-    constructor(_cfg: { apiKey: string }) {}
-    async search() {
-      return {
-        choices: [{ message: { content: "stub" } }],
-        citations: [],
-        search_results: [],
-      };
-    }
-  }
-  return { PerplexityResearchClient };
+vi.mock("@/shared/infrastructure/external/search/factory", () => {
+  return {
+    createResearchRepository: () => ({
+      async search() {
+        return {
+          choices: [{ message: { role: "assistant", content: "stub" } }],
+          citations: [],
+          search_results: [],
+        };
+      },
+    }),
+  };
 });
 
 import { createExecuteResearchUseCase } from "./index";

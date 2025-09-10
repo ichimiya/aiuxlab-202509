@@ -73,4 +73,21 @@ describe("researchStore", () => {
     expect(state.isListening).toBe(false);
     expect(state.currentResearchId).toBe(null);
   });
+
+  it("partialTranscriptを設定/クリアできる", () => {
+    const { setPartialTranscript, clearPartialTranscript } =
+      useResearchStore.getState() as any;
+
+    // 追加したAPIが存在すること
+    expect(typeof setPartialTranscript).toBe("function");
+    expect(typeof clearPartialTranscript).toBe("function");
+
+    setPartialTranscript("これは途中の結果です");
+    expect((useResearchStore.getState() as any).partialTranscript).toBe(
+      "これは途中の結果です",
+    );
+
+    clearPartialTranscript();
+    expect((useResearchStore.getState() as any).partialTranscript).toBe("");
+  });
 });
