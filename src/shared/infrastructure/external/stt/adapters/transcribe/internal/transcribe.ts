@@ -299,12 +299,14 @@ export class TranscribeClient {
         currentMax = Math.max(currentMax, Math.abs(channelData[i]));
       const now = Date.now();
       // 動的VADしきい値（envで上書き可）
-      const vadThresholdEnv = Number(
-        (process.env.NEXT_PUBLIC_VOICE_VAD_THRESHOLD || "").toString(),
-      );
+      const vadThresholdRaw = process.env.NEXT_PUBLIC_VOICE_VAD_THRESHOLD;
+      const vadThresholdNum =
+        vadThresholdRaw !== undefined && vadThresholdRaw !== ""
+          ? Number(vadThresholdRaw)
+          : Number.NaN;
       const vadThreshold =
-        Number.isFinite(vadThresholdEnv) && vadThresholdEnv > 0
-          ? vadThresholdEnv
+        Number.isFinite(vadThresholdNum) && vadThresholdNum > 0
+          ? vadThresholdNum
           : this.SILENCE_THRESHOLD;
       if (currentMax > vadThreshold) {
         this.lastAudioTime = now;
@@ -316,11 +318,13 @@ export class TranscribeClient {
           voicePerf.mark("stt.vad.speech_start");
         }
       } else {
-        const vadEndEnv = Number(
-          (process.env.NEXT_PUBLIC_VOICE_VAD_END_MS || "").toString(),
-        );
+        const vadEndRaw = process.env.NEXT_PUBLIC_VOICE_VAD_END_MS;
+        const vadEndNum =
+          vadEndRaw !== undefined && vadEndRaw !== ""
+            ? Number(vadEndRaw)
+            : Number.NaN;
         const vadEndMs =
-          Number.isFinite(vadEndEnv) && vadEndEnv >= 0 ? vadEndEnv : 250;
+          Number.isFinite(vadEndNum) && vadEndNum > 0 ? vadEndNum : 250;
         if (this.vadIsSpeech && now - this.lastAudioTime >= vadEndMs) {
           this.vadIsSpeech = false;
           this.utteranceActive = false;
