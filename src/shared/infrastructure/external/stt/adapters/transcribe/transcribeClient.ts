@@ -29,6 +29,8 @@ export class TranscribeClient {
   private connected: boolean = false;
   private stopping = false;
   private handlers: SimpleSttHandlers = {};
+  private autoReconnect = true;
+  private reconnecting = false;
 
   constructor(private readonly cfg: SimpleSttConfig) {}
 
@@ -130,13 +132,8 @@ export class TranscribeClient {
     });
   }
 
-  async start(): Promise<void> {
-    if (this.connected) return;
-    this.updateStatus("connecting");
-    await this.initAws();
-    const sr = await this.initAudio();
+  private buildAudioStream(sr: number): AsyncIterable<AudioStream> {
     const chunkMs = Math.max(20, Math.min(this.cfg.chunkMs ?? 60, 1000));
-
     const audioStream: AsyncIterable<AudioStream> = {
       [Symbol.asyncIterator]: (): AsyncIterator<AudioStream> => {
         const it: AsyncIterator<AudioStream> = {
@@ -180,12 +177,15 @@ export class TranscribeClient {
         return it;
       },
     };
+    return audioStream;
+  }
 
+  private async startAwsSession(sr: number): Promise<void> {
     const input: StartStreamTranscriptionCommandInput = {
       LanguageCode: this.cfg.languageCode,
       MediaEncoding: "pcm",
       MediaSampleRateHertz: sr,
-      AudioStream: audioStream,
+      AudioStream: this.buildAudioStream(sr),
       EnablePartialResultsStabilization: true,
       PartialResultsStability: this.cfg.lowLatency === false ? "medium" : "low",
     } as const;
@@ -221,10 +221,42 @@ export class TranscribeClient {
         }
       } catch (e: unknown) {
         const err = e as { message?: string };
-        const msg = err?.message || "stream error";
-        this.handlers.onError?.(msg);
+        const msg = (err?.message || "stream error").toLowerCase();
+        // 自動再接続（15秒無音タイムアウトなど）
+        const shouldReconnect =
+          this.autoReconnect &&
+          !this.stopping &&
+          (msg.includes("no new audio") ||
+            msg.includes("timed out") ||
+            msg.includes("timeout"));
+        if (shouldReconnect && !this.reconnecting) {
+          try {
+            this.reconnecting = true;
+            this.connected = false;
+            this.updateStatus("connecting");
+            await new Promise((r) => setTimeout(r, 100));
+            const sr2 = this.audioContext?.sampleRate ?? sr;
+            await this.startAwsSession(sr2);
+            return;
+          } catch {
+            // fallthrough to error handler
+          } finally {
+            this.reconnecting = false;
+          }
+        }
+        this.connected = false;
+        this.updateStatus("error");
+        this.handlers.onError?.(err?.message || "stream error");
       }
     })();
+  }
+
+  async start(): Promise<void> {
+    if (this.connected) return;
+    this.updateStatus("connecting");
+    if (!this.client) await this.initAws();
+    const sr = this.audioContext?.sampleRate ?? (await this.initAudio());
+    await this.startAwsSession(sr);
   }
 
   async stop(): Promise<void> {
