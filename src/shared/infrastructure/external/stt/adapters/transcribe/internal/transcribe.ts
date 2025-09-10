@@ -5,6 +5,7 @@ import {
 } from "@aws-sdk/client-transcribe-streaming";
 import type { AudioStream } from "@aws-sdk/client-transcribe-streaming";
 import { getAudioIO } from "./audio";
+import { voicePerf } from "@/shared/lib/voicePerf";
 
 export interface TranscribeConfig {
   region: string;
@@ -185,14 +186,22 @@ export class TranscribeClient {
       throw new Error("Browser does not support required audio features");
 
     try {
+      voicePerf.mark("stt.start.begin", { isTestEnv, allowInTest });
       this.updateConnectionStatus("connecting");
       this.isTranscribing = true;
       if (!(isTestEnv && !allowInTest)) {
+        const endInitClient = voicePerf.span("stt.init.client");
         await this.initializeTranscribeClient();
+        endInitClient();
         const hasAC =
           typeof window !== "undefined" &&
           ("AudioContext" in window || "webkitAudioContext" in window);
-        if (hasAC) await this.initializeWebAudio();
+        if (hasAC) {
+          const endInitAudio = voicePerf.span("stt.init.audio");
+          await this.initializeWebAudio();
+          endInitAudio();
+        }
+        voicePerf.mark("stt.session.prepare");
         void this.startTranscriptionSession().catch((error) => {
           console.error("Transcription session async error:", error);
           this.eventHandlers?.onError?.({
@@ -203,10 +212,12 @@ export class TranscribeClient {
       }
       this.updateConnectionStatus("connected");
       this.startKeepAliveTimer();
+      voicePerf.mark("stt.start.connected");
       console.log("🎙️ AWS Transcribe Streaming started");
     } catch (error) {
       this.updateConnectionStatus("error");
       console.error("Failed to start AWS Transcribe:", error);
+      voicePerf.mark("stt.start.error");
       await this.stopTranscription();
       if (this.eventHandlers?.onError) {
         if (error instanceof Error && error.name === "NotAllowedError") {
@@ -308,6 +319,7 @@ export class TranscribeClient {
   private async startTranscriptionSession(): Promise<void> {
     const mySeq = ++this.sessionSeq;
     if (!this.client) throw new Error("Transcribe client not initialized");
+    voicePerf.mark("stt.session.start");
     type Stabilization = {
       EnablePartialResultsStabilization?: boolean;
       PartialResultsStability?: "low" | "medium" | "high";
@@ -345,6 +357,8 @@ export class TranscribeClient {
         | AsyncIterable<SdkTranscriptEvent>
         | undefined;
       if (!stream) return;
+      let firstPartialMarked = false;
+      let firstFinalMarked = false;
       for await (const event of stream) {
         if (mySeq !== this.sessionSeq) break; // 旧セッションの受信は破棄
         const transcriptEvent = event?.TranscriptEvent;
@@ -359,6 +373,14 @@ export class TranscribeClient {
           const alt = r.Alternatives?.[0];
           if (alt?.Transcript != null) {
             const isFinal = !r.IsPartial;
+            if (!isFinal && !firstPartialMarked) {
+              voicePerf.mark("stt.session.first_result.partial");
+              firstPartialMarked = true;
+            }
+            if (isFinal && !firstFinalMarked) {
+              voicePerf.mark("stt.session.first_result.final");
+              firstFinalMarked = true;
+            }
             this.eventHandlers?.onTranscriptionResult(alt.Transcript, isFinal);
           }
         }
@@ -402,6 +424,7 @@ export class TranscribeClient {
       );
       let lastAccumulatedAt = Date.now();
 
+      let firstChunkSent = true;
       while (
         self.isTranscribing &&
         self.connectionStatus === "connected" &&
@@ -430,6 +453,10 @@ export class TranscribeClient {
             self.accumulatedBuffer.length > targetBytes
               ? self.accumulatedBuffer.slice(targetBytes)
               : null;
+          if (firstChunkSent) {
+            voicePerf.mark("stt.session.first_chunk_sent");
+            firstChunkSent = false;
+          }
           yield {
             AudioEvent: { AudioChunk: toSend },
           } as unknown as AudioStream;
@@ -445,6 +472,10 @@ export class TranscribeClient {
         ) {
           const toSend = self.accumulatedBuffer;
           self.accumulatedBuffer = null;
+          if (firstChunkSent) {
+            voicePerf.mark("stt.session.first_chunk_sent");
+            firstChunkSent = false;
+          }
           yield {
             AudioEvent: { AudioChunk: toSend },
           } as unknown as AudioStream;
@@ -528,6 +559,7 @@ export class TranscribeClient {
   ): void {
     this.connectionStatus = status;
     this.eventHandlers?.onConnectionStatusChange(status);
+    voicePerf.mark(`stt.connection.${status}`);
   }
 
   private startKeepAliveTimer(): void {
@@ -549,6 +581,7 @@ export class TranscribeClient {
         now - this.lastRestartAt > this.RECONNECT_ON_SILENCE_MS &&
         !this.restarting
       ) {
+        voicePerf.mark("stt.keepalive.reconnect.trigger");
         this.restarting = true;
         this.lastRestartAt = now;
         // クライアントだけを入れ替え、AudioContextは維持

@@ -8,6 +8,7 @@ import {
 import { useResearchStore } from "@/shared/stores/researchStore";
 import { createProcessVoiceCommandUseCase } from "@/shared/useCases/ProcessVoiceCommandUseCase/factory";
 import type { VoiceButtonState } from "../../types";
+import { voicePerf } from "@/shared/lib/voicePerf";
 
 export function useVoiceRecognitionButtonViewModel() {
   const {
@@ -81,6 +82,7 @@ export function useVoiceRecognitionButtonViewModel() {
 
   // 音声認識の開始/停止処理
   const handleToggleListening = useCallback(async () => {
+    voicePerf.mark("ui.toggle.start");
     if (isListening) {
       try {
         if (!voiceUseCase.isProcessing) {
@@ -106,6 +108,7 @@ export function useVoiceRecognitionButtonViewModel() {
         ) {
           transcribeClient.setEventHandlers({
             onTranscriptionResult: (text: string, isFinal: boolean) => {
+              voicePerf.mark(isFinal ? "ui.result.final" : "ui.result.partial");
               console.log("🎯 音声認識結果:", text, "Final:", isFinal);
 
               if (isFinal) {
@@ -114,6 +117,7 @@ export function useVoiceRecognitionButtonViewModel() {
                   setVoiceCommand(text);
                   clearPartialTranscript();
                 });
+                voicePerf.mark("ui.state.updated");
 
                 // ドメイン解析はアイドル/次ティックへ後回し（メインスレッドを詰まらせない）
                 defer(() => {
@@ -128,6 +132,7 @@ export function useVoiceRecognitionButtonViewModel() {
                       parsedResult.pattern,
                     );
                     if (autoStop) {
+                      voicePerf.mark("ui.autostop.trigger");
                       setIsListening(false);
                       if (voiceUseCase.isProcessing) {
                         voiceUseCase
@@ -148,6 +153,7 @@ export function useVoiceRecognitionButtonViewModel() {
               }
             },
             onError: (error) => {
+              voicePerf.mark("ui.error");
               console.error("AWS Transcribe Error:", error);
               const isSilenceTimeout =
                 error.error === "network" &&
@@ -177,18 +183,21 @@ export function useVoiceRecognitionButtonViewModel() {
               }
             },
             onConnectionStatusChange: (status) => {
+              voicePerf.mark(`ui.connection.${status}`);
               console.log("🔗 接続状態変更:", status);
             },
           });
         }
 
         // 音声認識を開始（UIをブロックしない）
+        voicePerf.mark("ui.stt.start.call");
         voiceUseCase.startRealTimeTranscription().catch((err) => {
           console.error("Failed to start voice recognition:", err);
           setIsListening(false);
           clearPartialTranscript();
         });
       } catch (error) {
+        voicePerf.mark("ui.stt.start.error");
         console.error("Failed to start voice recognition:", error);
         setIsListening(false);
         clearPartialTranscript();

@@ -3,15 +3,20 @@ import { TranscribeClient } from "./transcribe";
 
 // Mock AWS Streaming Client
 const sendSpy = vi.fn();
-const StartStreamTranscriptionCommand = vi.fn(function (this: any, input: any) {
-  // keep input for assertions
-  (this as any).__input = input;
+vi.mock("@aws-sdk/client-transcribe-streaming", () => {
+  const LocalStartStreamTranscriptionCommand = vi.fn(function (
+    this: any,
+    input: any,
+  ) {
+    // keep input for assertions
+    (this as any).__input = input;
+  });
+  (global as any).__SSTC = LocalStartStreamTranscriptionCommand;
+  return {
+    TranscribeStreamingClient: vi.fn(() => ({ send: sendSpy })),
+    StartStreamTranscriptionCommand: LocalStartStreamTranscriptionCommand,
+  };
 });
-
-vi.mock("@aws-sdk/client-transcribe-streaming", () => ({
-  TranscribeStreamingClient: vi.fn(() => ({ send: sendSpy })),
-  StartStreamTranscriptionCommand,
-}));
 
 // Minimal fake browser APIs
 class FakeAudioContext {
@@ -33,11 +38,20 @@ class FakeAudioContext {
 const mockStream = { getTracks: vi.fn(() => [{ stop: vi.fn() }]) } as any;
 
 function setupBrowserEnv() {
-  (global as any).navigator = {
-    mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(mockStream) },
-  };
-  (global as any).window = {
-    AudioContext: FakeAudioContext,
+  Object.defineProperty(global as any, "navigator", {
+    value: {
+      mediaDevices: { getUserMedia: vi.fn().mockResolvedValue(mockStream) },
+    },
+    configurable: true,
+  });
+  Object.defineProperty(global as any, "window", {
+    value: { AudioContext: FakeAudioContext },
+    configurable: true,
+  });
+  (global as any).AudioWorkletNode = class FakeAWN {
+    port = { onmessage: null as any };
+    constructor() {}
+    disconnect() {}
   };
 }
 
@@ -95,8 +109,7 @@ describe("TranscribeClient streaming", () => {
 
     expect(sendSpy).toHaveBeenCalledTimes(1);
     // Verify StartStreamTranscriptionCommand created with AudioContext sampleRate (48000)
-    const cmdInstance = (StartStreamTranscriptionCommand as any).mock
-      .instances[0];
+    const cmdInstance = ((global as any).__SSTC as any).mock.instances[0];
     expect(cmdInstance.__input.MediaSampleRateHertz).toBe(48000);
     expect(cmdInstance.__input.LanguageCode).toBe("ja-JP");
 
@@ -182,8 +195,7 @@ describe("TranscribeClient streaming", () => {
     );
 
     await client.startRealTimeTranscription();
-    const cmdInstance = (StartStreamTranscriptionCommand as any).mock
-      .instances[0];
+    const cmdInstance = ((global as any).__SSTC as any).mock.instances[0];
     const input = cmdInstance.__input;
     expect(input.EnablePartialResultsStabilization).toBe(true);
     expect((input.PartialResultsStability || "").toString().toLowerCase()).toBe(
@@ -228,8 +240,7 @@ describe("TranscribeClient streaming", () => {
     await client.startRealTimeTranscription();
     await Promise.resolve();
 
-    const cmdInstance = (StartStreamTranscriptionCommand as any).mock
-      .instances[0];
+    const cmdInstance = ((global as any).__SSTC as any).mock.instances[0];
     const input = cmdInstance.__input;
     expect(input.MediaSampleRateHertz).toBe(16000);
     expect(firstChunkBytes).toBeGreaterThanOrEqual(3000);
@@ -253,8 +264,7 @@ describe("TranscribeClient streaming", () => {
     );
 
     await client.startRealTimeTranscription();
-    const cmdInstance = (StartStreamTranscriptionCommand as any).mock
-      .instances[0];
+    const cmdInstance = ((global as any).__SSTC as any).mock.instances[0];
     const input = cmdInstance.__input;
     expect(input.EnablePartialResultsStabilization).toBe(true);
     expect((input.PartialResultsStability || "").toString().toLowerCase()).toBe(
@@ -278,8 +288,7 @@ describe("TranscribeClient streaming", () => {
     );
 
     await client.startRealTimeTranscription();
-    const cmdInstance = (StartStreamTranscriptionCommand as any).mock
-      .instances[0];
+    const cmdInstance = ((global as any).__SSTC as any).mock.instances[0];
     const input = cmdInstance.__input;
     expect(input.EnablePartialResultsStabilization).not.toBe(true);
     expect(input.PartialResultsStability).toBeUndefined();
@@ -327,5 +336,97 @@ describe("TranscribeClient streaming", () => {
     // Allow any pending ticks to settle
     await Promise.resolve();
     expect(consumed).toBeGreaterThan(0);
+  });
+
+  it("emits perf marks when enabled", async () => {
+    const prev = process.env.NEXT_PUBLIC_VOICE_PERF;
+    process.env.NEXT_PUBLIC_VOICE_PERF = "1";
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    // Arrange AWS to yield one final result
+    sendSpy.mockImplementationOnce(async () => ({
+      TranscriptResultStream: (async function* () {
+        yield {
+          TranscriptEvent: {
+            Transcript: {
+              Results: [
+                {
+                  IsPartial: false,
+                  Alternatives: [{ Transcript: "テスト2" }],
+                },
+              ],
+            },
+          },
+        };
+      })(),
+    }));
+
+    const client = new TranscribeClient(
+      {
+        region: "ap-northeast-1",
+        languageCode: "ja-JP",
+        mediaEncoding: "pcm",
+        mediaSampleRateHertz: 16000,
+      },
+      { enableInTest: true },
+    );
+
+    await client.startRealTimeTranscription();
+    await Promise.resolve();
+
+    // Should include perf marks
+    const calls = logSpy.mock.calls.map((c) => String(c[0]));
+    expect(
+      calls.some(
+        (s) => s.includes("[VOICE_PERF]") && s.includes("stt.start.begin"),
+      ),
+    ).toBe(true);
+    // We only assert early-stage mark here to avoid coupling to stream impl
+    // Final result mark is validated implicitly by runtime logs when running the app
+
+    logSpy.mockRestore();
+    process.env.NEXT_PUBLIC_VOICE_PERF = prev;
+  });
+
+  it("does not emit perf marks when disabled", async () => {
+    const prev = process.env.NEXT_PUBLIC_VOICE_PERF;
+    delete process.env.NEXT_PUBLIC_VOICE_PERF;
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    sendSpy.mockImplementationOnce(async () => ({
+      TranscriptResultStream: (async function* () {
+        yield {
+          TranscriptEvent: {
+            Transcript: {
+              Results: [
+                {
+                  IsPartial: false,
+                  Alternatives: [{ Transcript: "ok" }],
+                },
+              ],
+            },
+          },
+        };
+      })(),
+    }));
+
+    const client = new TranscribeClient(
+      {
+        region: "ap-northeast-1",
+        languageCode: "ja-JP",
+        mediaEncoding: "pcm",
+        mediaSampleRateHertz: 16000,
+      },
+      { enableInTest: true },
+    );
+
+    await client.startRealTimeTranscription();
+    await Promise.resolve();
+
+    const calls = logSpy.mock.calls.map((c) => String(c[0]));
+    expect(calls.some((s) => s.includes("[VOICE_PERF]"))).toBe(false);
+
+    logSpy.mockRestore();
+    process.env.NEXT_PUBLIC_VOICE_PERF = prev;
   });
 });
