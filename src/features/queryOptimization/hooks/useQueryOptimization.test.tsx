@@ -5,7 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 
 // orval APIをモック
 vi.mock("@/shared/api/generated/api", () => ({
-  optimizeQuery: vi.fn(async (_data: unknown) => {
+  optimizeQuery: vi.fn(async () => {
     return Promise.resolve({
       optimizedQuery: "AIの潜在的リスクと安全対策の包括的評価",
       addedAspects: ["規制動向", "事故事例"],

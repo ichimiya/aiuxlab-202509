@@ -13,7 +13,11 @@ vi.mock("./internal", () => ({
       setEventHandlers: vi.fn(),
       startRealTimeTranscription: vi.fn(async () => void 0),
       stopTranscription: vi.fn(async () => void 0),
-      transcribeAudio: vi.fn(async () => ({ transcript: "", confidence: 0.5, isPartial: false })),
+      transcribeAudio: vi.fn(async () => ({
+        transcript: "",
+        confidence: 0.5,
+        isPartial: false,
+      })),
     } as any;
   }),
 }));
@@ -31,7 +35,7 @@ describe("TranscribeAdapter config", () => {
   it("uses env region when provided", () => {
     (process.env as any).NEXT_PUBLIC_AWS_REGION = "ap-northeast-1";
     // instantiate
-    // eslint-disable-next-line no-new
+
     new TranscribeAdapter();
     expect(ctorSpy).toHaveBeenCalled();
     const [cfg] = ctorSpy.mock.calls[0];
@@ -40,7 +44,7 @@ describe("TranscribeAdapter config", () => {
 
   it("enables low-latency options when env set", () => {
     (process.env as any).NEXT_PUBLIC_AWS_TRANSCRIBE_LOW_LATENCY = "1";
-    // eslint-disable-next-line no-new
+
     new TranscribeAdapter();
     const [, opts] = ctorSpy.mock.calls[0];
     expect(opts?.chunkWaitMs).toBe(5);
@@ -48,7 +52,7 @@ describe("TranscribeAdapter config", () => {
 
   it("passes target chunk ms when env set", () => {
     (process.env as any).NEXT_PUBLIC_AWS_TRANSCRIBE_CHUNK_MS = "80";
-    // eslint-disable-next-line no-new
+
     new TranscribeAdapter();
     const [, opts] = ctorSpy.mock.calls[0];
     expect(opts?.targetChunkMs).toBe(80);
@@ -56,7 +60,7 @@ describe("TranscribeAdapter config", () => {
 
   it("maps stability env to client options (medium)", () => {
     (process.env as any).NEXT_PUBLIC_AWS_TRANSCRIBE_STABILITY = "medium";
-    // eslint-disable-next-line no-new
+
     new TranscribeAdapter();
     const [, opts] = ctorSpy.mock.calls[0];
     expect((opts as any).stability).toBe("medium");
@@ -64,7 +68,7 @@ describe("TranscribeAdapter config", () => {
 
   it("maps stability env to off", () => {
     (process.env as any).NEXT_PUBLIC_AWS_TRANSCRIBE_STABILITY = "off";
-    // eslint-disable-next-line no-new
+
     new TranscribeAdapter();
     const [, opts] = ctorSpy.mock.calls[0];
     expect((opts as any).stability).toBe("off");

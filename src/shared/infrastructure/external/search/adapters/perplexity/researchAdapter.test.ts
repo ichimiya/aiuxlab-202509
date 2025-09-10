@@ -12,7 +12,7 @@ vi.mock("openai", () => {
           })),
         },
       };
-      constructor(_: { apiKey: string; baseURL?: string }) {}
+      constructor() {}
     },
   };
 });

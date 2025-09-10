@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { VoiceDomainService } from "./services";
-import type { VoicePattern } from "../../api/generated/models";
 
 describe("VoiceDomainService", () => {
   let voiceService: VoiceDomainService;

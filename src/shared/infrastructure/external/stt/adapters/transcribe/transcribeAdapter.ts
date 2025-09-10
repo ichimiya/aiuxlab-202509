@@ -13,7 +13,8 @@ export class TranscribeAdapter implements SpeechToTextPort {
     const base = {
       region,
       languageCode: (config?.languageCode as "ja-JP" | "en-US") || "ja-JP",
-      mediaEncoding: (config?.mediaEncoding as "pcm" | "ogg-opus" | "flac") || "pcm",
+      mediaEncoding:
+        (config?.mediaEncoding as "pcm" | "ogg-opus" | "flac") || "pcm",
       mediaSampleRateHertz: config?.mediaSampleRateHertz || 16000,
       accessKeyId: config?.accessKeyId,
       secretAccessKey: config?.secretAccessKey,
@@ -25,13 +26,15 @@ export class TranscribeAdapter implements SpeechToTextPort {
       process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_CHUNK_MS || "",
       10,
     );
-    const opts: ConstructorParameters<typeof TranscribeClient>[1] = {};
+    const opts: NonNullable<ConstructorParameters<typeof TranscribeClient>[1]> =
+      {};
     if (lowLatency) opts.chunkWaitMs = 5;
     if (!Number.isNaN(targetChunkMs) && targetChunkMs > 0) {
-      (opts as any).targetChunkMs = targetChunkMs;
+      opts.targetChunkMs = targetChunkMs;
     }
-    const stabilityEnv = (process.env
-      .NEXT_PUBLIC_AWS_TRANSCRIBE_STABILITY || "")
+    const stabilityEnv = (
+      process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_STABILITY || ""
+    )
       .toString()
       .toLowerCase();
     const stability =
@@ -44,10 +47,13 @@ export class TranscribeAdapter implements SpeechToTextPort {
             : stabilityEnv === "high"
               ? "high"
               : undefined;
-    if (stability) (opts as any).stability = stability;
+    if (stability) opts.stability = stability;
 
     // Restart-on-final 機能は削除（常に継続セッション）
-    this.client = new TranscribeClient(base, Object.keys(opts).length ? opts : undefined);
+    this.client = new TranscribeClient(
+      base,
+      Object.keys(opts).length ? opts : undefined,
+    );
   }
 
   get isActive(): boolean {

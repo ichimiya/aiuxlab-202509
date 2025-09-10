@@ -108,7 +108,10 @@ export class TranscribeClient {
     silenceRatio: 0,
   };
 
-  constructor(config: TranscribeConfig, private readonly opts?: TranscribeClientOptions) {
+  constructor(
+    config: TranscribeConfig,
+    private readonly opts?: TranscribeClientOptions,
+  ) {
     this.config = config;
   }
 
@@ -305,24 +308,42 @@ export class TranscribeClient {
   private async startTranscriptionSession(): Promise<void> {
     const mySeq = ++this.sessionSeq;
     if (!this.client) throw new Error("Transcribe client not initialized");
-    const params: StartStreamTranscriptionCommandInput = {
+    type Stabilization = {
+      EnablePartialResultsStabilization?: boolean;
+      PartialResultsStability?: "low" | "medium" | "high";
+    };
+    const baseParams: StartStreamTranscriptionCommandInput = {
       LanguageCode: this.config.languageCode,
       MediaEncoding: "pcm",
       MediaSampleRateHertz: this.config.mediaSampleRateHertz,
       AudioStream: this.createAudioStream(),
-    } as any;
+    };
+    const params: StartStreamTranscriptionCommandInput & Stabilization = {
+      ...baseParams,
+    };
     // 部分結果安定化（環境によって調整可能）
     const stability = this.opts?.stability ?? "medium";
     if (stability && stability !== "off") {
-      (params as any).EnablePartialResultsStabilization = true;
-      (params as any).PartialResultsStability = stability;
+      params.EnablePartialResultsStabilization = true;
+      params.PartialResultsStability = stability;
     }
     const command = new StartStreamTranscriptionCommand(params);
     const response = await this.client.send(command);
     try {
       // イベントストリームの監視
-      // @ts-expect-error AWS SDKの型定義の都合でany扱い
-      const stream = response.TranscriptResultStream as AsyncIterable<any> | undefined;
+      type SdkTranscriptEvent = {
+        TranscriptEvent?: {
+          Transcript?: {
+            Results?: Array<{
+              Alternatives?: Array<{ Transcript?: string }>;
+              IsPartial?: boolean;
+            }>;
+          };
+        };
+      };
+      const stream = response.TranscriptResultStream as
+        | AsyncIterable<SdkTranscriptEvent>
+        | undefined;
       if (!stream) return;
       for await (const event of stream) {
         if (mySeq !== this.sessionSeq) break; // 旧セッションの受信は破棄
@@ -353,7 +374,7 @@ export class TranscribeClient {
         this.updateConnectionStatus("connecting");
         // 注意: 送信ジェネレータはconnectionStatus==='connected'で動くため、
         // 非同期にセッション開始し、先にconnectedへ遷移させる
-        void this.startTranscriptionSession().catch((e) => {
+        void this.startTranscriptionSession().catch(() => {
           this.updateConnectionStatus("error");
           this.eventHandlers?.onError?.({
             error: "network",
@@ -366,12 +387,19 @@ export class TranscribeClient {
   }
 
   private createAudioStream(): AsyncIterable<AudioStream> {
-    const self = this;
-    async function* generator(): AsyncGenerator<AudioStream, void, unknown> {
-      const targetMs = Math.max(20, Math.min(self.opts?.targetChunkMs ?? 100, 1000));
+    const generator = async function* (
+      self: TranscribeClient,
+    ): AsyncGenerator<AudioStream, void, unknown> {
+      const targetMs = Math.max(
+        20,
+        Math.min(self.opts?.targetChunkMs ?? 100, 1000),
+      );
       const sr = self.config.mediaSampleRateHertz || 16000;
       const bytesPerMs = (sr * 2) / 1000; // mono 16-bit PCM
-      const targetBytes = Math.max(2, Math.floor((bytesPerMs * targetMs) / 2) * 2);
+      const targetBytes = Math.max(
+        2,
+        Math.floor((bytesPerMs * targetMs) / 2) * 2,
+      );
       let lastAccumulatedAt = Date.now();
 
       while (
@@ -383,7 +411,9 @@ export class TranscribeClient {
         if (next && next.length > 0) {
           if (!self.accumulatedBuffer) self.accumulatedBuffer = next;
           else {
-            const buf = new Uint8Array(self.accumulatedBuffer.length + next.length);
+            const buf = new Uint8Array(
+              self.accumulatedBuffer.length + next.length,
+            );
             buf.set(self.accumulatedBuffer);
             buf.set(next, self.accumulatedBuffer.length);
             self.accumulatedBuffer = buf;
@@ -391,13 +421,18 @@ export class TranscribeClient {
           lastAccumulatedAt = Date.now();
         }
 
-        if (self.accumulatedBuffer && self.accumulatedBuffer.length >= targetBytes) {
+        if (
+          self.accumulatedBuffer &&
+          self.accumulatedBuffer.length >= targetBytes
+        ) {
           const toSend = self.accumulatedBuffer.slice(0, targetBytes);
           self.accumulatedBuffer =
             self.accumulatedBuffer.length > targetBytes
               ? self.accumulatedBuffer.slice(targetBytes)
               : null;
-          yield { AudioEvent: { AudioChunk: toSend } } as unknown as AudioStream;
+          yield {
+            AudioEvent: { AudioChunk: toSend },
+          } as unknown as AudioStream;
           continue;
         }
 
@@ -405,19 +440,24 @@ export class TranscribeClient {
         if (
           self.accumulatedBuffer &&
           self.accumulatedBuffer.length > 0 &&
-          Date.now() - Math.max(self.lastAudioTime, lastAccumulatedAt) >= self.IDLE_FLUSH_MS
+          Date.now() - Math.max(self.lastAudioTime, lastAccumulatedAt) >=
+            self.IDLE_FLUSH_MS
         ) {
           const toSend = self.accumulatedBuffer;
           self.accumulatedBuffer = null;
-          yield { AudioEvent: { AudioChunk: toSend } } as unknown as AudioStream;
+          yield {
+            AudioEvent: { AudioChunk: toSend },
+          } as unknown as AudioStream;
           continue;
         }
 
         const wait = self.opts?.chunkWaitMs ?? 20;
         await new Promise((r) => setTimeout(r, wait));
       }
-    }
-    return { [Symbol.asyncIterator]: generator } as AsyncIterable<AudioStream>;
+    };
+    return {
+      [Symbol.asyncIterator]: () => generator(this),
+    } as AsyncIterable<AudioStream>;
   }
 
   async stopTranscription(): Promise<void> {

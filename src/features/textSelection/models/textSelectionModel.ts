@@ -71,7 +71,7 @@ export const textSelectionModel: TextSelectionModel = {
     const text = (selection?.toString() ?? "").trim();
     const language: Language = detectLanguage(text);
     const wordCount = countWords(text, language);
-    const selectionType: SelectionType = classifySelectionType(text, language);
+    const selectionType: SelectionType = classifySelectionType(text);
     return { wordCount, language, selectionType };
   },
 };
@@ -97,7 +97,7 @@ function countWords(text: string, lang: Language): number {
   return cleaned.length;
 }
 
-function classifySelectionType(text: string, lang: Language): SelectionType {
+function classifySelectionType(text: string): SelectionType {
   if (!text) return "word";
   const trimmed = text.trim();
   if (/\n/.test(trimmed) || trimmed.length > 300) return "paragraph";

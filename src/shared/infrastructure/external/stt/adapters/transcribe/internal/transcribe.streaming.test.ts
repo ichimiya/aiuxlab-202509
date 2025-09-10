@@ -62,9 +62,7 @@ describe("TranscribeClient streaming", () => {
               Results: [
                 {
                   IsPartial: false,
-                  Alternatives: [
-                    { Transcript: "テストです", Items: [] },
-                  ],
+                  Alternatives: [{ Transcript: "テストです", Items: [] }],
                 },
               ],
             },
@@ -97,7 +95,8 @@ describe("TranscribeClient streaming", () => {
 
     expect(sendSpy).toHaveBeenCalledTimes(1);
     // Verify StartStreamTranscriptionCommand created with AudioContext sampleRate (48000)
-    const cmdInstance = (StartStreamTranscriptionCommand as any).mock.instances[0];
+    const cmdInstance = (StartStreamTranscriptionCommand as any).mock
+      .instances[0];
     expect(cmdInstance.__input.MediaSampleRateHertz).toBe(48000);
     expect(cmdInstance.__input.LanguageCode).toBe("ja-JP");
 
@@ -125,7 +124,9 @@ describe("TranscribeClient streaming", () => {
 
   it("aggregates ~100ms audio chunks per AWS best practice", async () => {
     // Arrange a 16kHz environment
-    class SR16kAC extends FakeAudioContext { sampleRate = 16000; }
+    class SR16kAC extends FakeAudioContext {
+      sampleRate = 16000;
+    }
     (global as any).window = { AudioContext: SR16kAC };
 
     let firstChunkBytes = 0;
@@ -192,7 +193,9 @@ describe("TranscribeClient streaming", () => {
   });
 
   it("keeps MediaSampleRateHertz at 16000 even if AudioContext is 48k", async () => {
-    class SR48kAC extends FakeAudioContext { sampleRate = 48000; }
+    class SR48kAC extends FakeAudioContext {
+      sampleRate = 48000;
+    }
     (global as any).window = { AudioContext: SR48kAC };
 
     let firstChunkBytes = 0;
@@ -292,7 +295,8 @@ describe("TranscribeClient streaming", () => {
       const stream: AsyncIterable<any> = input.AudioStream;
       // Simulate server reading: pull a few iterations then close
       (async () => {
-        for await (const _ of stream) {
+        for await (const __unused of stream) {
+          void __unused;
           consumed++;
           if (consumed > 3) break;
         }

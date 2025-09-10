@@ -1,4 +1,10 @@
-import { useCallback, useMemo, useEffect, useState, startTransition } from "react";
+import {
+  useCallback,
+  useMemo,
+  useEffect,
+  useState,
+  startTransition,
+} from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
 import { createProcessVoiceCommandUseCase } from "@/shared/useCases/ProcessVoiceCommandUseCase/factory";
 import type { VoiceButtonState } from "../../types";
@@ -41,9 +47,13 @@ export function useVoiceRecognitionButtonViewModel() {
 
   // ブラウザアイドル時/次ティックに処理を後回し
   const defer = useCallback((fn: () => void) => {
-    const ric = (globalThis as any).requestIdleCallback as
-      | ((cb: () => void, opts?: { timeout?: number }) => number)
-      | undefined;
+    type MaybeRIC = typeof globalThis & {
+      requestIdleCallback?: (
+        cb: () => void,
+        opts?: { timeout?: number },
+      ) => number;
+    };
+    const ric = (globalThis as MaybeRIC).requestIdleCallback;
     if (typeof ric === "function") {
       ric(() => fn(), { timeout: 200 });
     } else {
@@ -184,7 +194,16 @@ export function useVoiceRecognitionButtonViewModel() {
         clearPartialTranscript();
       }
     }
-  }, [isListening, voiceUseCase, setIsListening, setVoiceCommand]);
+  }, [
+    isListening,
+    voiceUseCase,
+    setIsListening,
+    setVoiceCommand,
+    autoStop,
+    clearPartialTranscript,
+    defer,
+    setPartialTranscript,
+  ]);
 
   // 権限要求
   const requestPermission = useCallback(async () => {

@@ -2,17 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import type { QueryOptimizationRequest } from "@/shared/domain/queryOptimization/services";
 
 // Mock AWS Bedrock client
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const invokedInputs: any[] = [];
 const sendMock = vi.fn();
 vi.mock("@aws-sdk/client-bedrock-runtime", () => {
   class BedrockRuntimeClient {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unused-vars
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     constructor(_opts?: any) {}
     send = sendMock;
   }
   class InvokeModelCommand {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(input: any) {
       invokedInputs.push(input);
     }
