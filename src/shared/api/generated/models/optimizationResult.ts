@@ -5,16 +5,16 @@
  * AI時代の新しいリサーチ体験を探索するPOC API
  * OpenAPI spec version: 0.1.0
  */
+import type { OptimizationCandidate } from "./optimizationCandidate";
 
 export interface OptimizationResult {
-  /** 最適化されたクエリ */
-  optimizedQuery: string;
-  /** 追加された観点 */
-  addedAspects: string[];
-  /** 改善の理由 */
-  improvementReason: string;
-  /** 信頼度（0-1） */
-  confidence: number;
-  /** 推奨追加調査 */
-  suggestedFollowups: string[];
+  /**
+   * 最適化されたクエリ候補の一覧
+   * @minItems 1
+   */
+  candidates: OptimizationCandidate[];
+  /** 候補全体に関するまとめとアドバイス */
+  evaluationSummary?: string;
+  /** LLMが推奨する候補のID */
+  recommendedCandidateId?: string;
 }

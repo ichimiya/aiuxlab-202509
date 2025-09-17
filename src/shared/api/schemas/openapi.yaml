@@ -55,7 +55,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OptimizationResult"
+                $ref: "#/components/schemas/OptimizationResponse"
         "400":
           description: 無効なリクエスト
           content:
@@ -85,6 +85,12 @@ components:
           description: 選択テキスト
         voiceCommand:
           $ref: "#/components/schemas/VoicePattern"
+        voiceTranscript:
+          type: string
+          description: 音声認識から得られた元のテキスト
+        sessionId:
+          type: string
+          description: クエリ最適化セッションID
         researchHistory:
           type: array
           items:
@@ -110,32 +116,69 @@ components:
     OptimizationResult:
       type: object
       required:
-        - optimizedQuery
-        - addedAspects
-        - improvementReason
-        - confidence
-        - suggestedFollowups
+        - candidates
       properties:
-        optimizedQuery:
+        candidates:
+          type: array
+          minItems: 1
+          description: 最適化されたクエリ候補の一覧
+          items:
+            $ref: "#/components/schemas/OptimizationCandidate"
+        evaluationSummary:
           type: string
-          description: 最適化されたクエリ
+          description: 候補全体に関するまとめとアドバイス
+        recommendedCandidateId:
+          type: string
+          description: LLMが推奨する候補のID
+
+    OptimizationResponse:
+      type: object
+      required:
+        - sessionId
+        - result
+      properties:
+        sessionId:
+          type: string
+          description: クエリ最適化セッションID
+        result:
+          $ref: "#/components/schemas/OptimizationResult"
+
+    OptimizationCandidate:
+      type: object
+      required:
+        - id
+        - query
+        - coverageScore
+        - coverageExplanation
+      properties:
+        id:
+          type: string
+          description: 候補を一意に識別するID
+        query:
+          type: string
+          description: 提案クエリ
+        coverageScore:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: ユーザー要件を満たしている度合い（0-1）
+        coverageExplanation:
+          type: string
+          description: スコアの理由や含まれる要件の説明
         addedAspects:
           type: array
           items:
             type: string
-          description: 追加された観点
+          description: 特に補強した観点
         improvementReason:
           type: string
-          description: 改善の理由
-        confidence:
-          type: number
-          format: float
-          description: 信頼度（0-1）
+          description: クエリがどのように改善されたか
         suggestedFollowups:
           type: array
           items:
             type: string
-          description: 推奨追加調査
+          description: 候補クエリに基づく追加調査案
     Research:
       type: object
       required:
@@ -234,6 +277,9 @@ components:
         voiceCommand:
           type: string
           description: 音声コマンド
+        voiceTranscript:
+          type: string
+          description: 音声認識から得られた元のテキスト
 
     SearchResult:
       type: object

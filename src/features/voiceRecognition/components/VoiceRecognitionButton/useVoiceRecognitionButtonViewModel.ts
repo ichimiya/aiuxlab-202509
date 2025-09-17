@@ -15,6 +15,7 @@ export function useVoiceRecognitionButtonViewModel() {
     isListening,
     setIsListening,
     setVoiceCommand,
+    setVoiceTranscript,
     setPartialTranscript,
     clearPartialTranscript,
   } = useResearchStore();
@@ -115,6 +116,7 @@ export function useVoiceRecognitionButtonViewModel() {
                 // 最終結果は即時にUIへ反映（同期コスト最小化）
                 startTransition(() => {
                   setVoiceCommand(text);
+                  setVoiceTranscript(text);
                   clearPartialTranscript();
                 });
                 voicePerf.mark("ui.state.updated");
@@ -208,6 +210,7 @@ export function useVoiceRecognitionButtonViewModel() {
     voiceUseCase,
     setIsListening,
     setVoiceCommand,
+    setVoiceTranscript,
     autoStop,
     clearPartialTranscript,
     defer,

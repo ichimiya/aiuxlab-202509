@@ -18,6 +18,10 @@ export interface QueryOptimizationRequest {
   /** 選択テキスト */
   selectedText?: string;
   voiceCommand?: VoicePattern;
+  /** 音声認識から得られた元のテキスト */
+  voiceTranscript?: string;
+  /** クエリ最適化セッションID */
+  sessionId?: string;
   /** 過去のリサーチ履歴 */
   researchHistory?: Research[];
   /** @nullable */

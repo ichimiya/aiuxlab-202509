@@ -7,7 +7,14 @@ import { TranscribeClient } from "@/shared/infrastructure/clients/transcribe/tra
 
 export class TranscribeAdapter implements SpeechToTextPort {
   private client: TranscribeClient;
+  private active = false;
+  private handlers: STTEventHandlers | null = null;
+
   constructor() {
+    this.client = this.createClient();
+  }
+
+  private createClient(): TranscribeClient {
     const region = process.env.NEXT_PUBLIC_AWS_REGION || "us-east-1";
     const lang = (process.env.NEXT_PUBLIC_STT_LANG || "ja-JP") as
       | "ja-JP"
@@ -16,7 +23,7 @@ export class TranscribeAdapter implements SpeechToTextPort {
       Number(process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_CHUNK_MS || "") || 60;
     const lowLatency =
       (process.env.NEXT_PUBLIC_AWS_TRANSCRIBE_LOW_LATENCY || "1") !== "";
-    this.client = new TranscribeClient({
+    return new TranscribeClient({
       region,
       languageCode: lang,
       chunkMs,
@@ -24,8 +31,22 @@ export class TranscribeAdapter implements SpeechToTextPort {
     });
   }
 
+  private applyHandlers() {
+    if (!this.handlers) return;
+    this.client.setHandlers({
+      onResult: (t, f) => this.handlers?.onTranscriptionResult?.(t, f),
+      onError: (m) =>
+        this.handlers?.onError?.({
+          error: "transcription-failed",
+          message: m,
+        }),
+      onConnectionStatusChange: (s) =>
+        this.handlers?.onConnectionStatusChange?.(s),
+    });
+  }
+
   get isActive(): boolean {
-    return true;
+    return this.active;
   }
   checkSupport(): boolean {
     return this.client.checkSupport();
@@ -34,18 +55,23 @@ export class TranscribeAdapter implements SpeechToTextPort {
     return this.client.requestPermission();
   }
   setEventHandlers(handlers: STTEventHandlers): void {
-    this.client.setHandlers({
-      onResult: (t, f) => handlers.onTranscriptionResult?.(t, f),
-      onError: (m) =>
-        handlers.onError?.({ error: "transcription-failed", message: m }),
-      onConnectionStatusChange: (s) => handlers.onConnectionStatusChange?.(s),
-    });
+    this.handlers = handlers;
+    this.applyHandlers();
   }
-  startRealTimeTranscription(): Promise<void> {
-    return this.client.start();
+  async startRealTimeTranscription(): Promise<void> {
+    try {
+      await this.client.start();
+      this.active = true;
+    } catch (error) {
+      this.active = false;
+      throw error;
+    }
   }
-  stopTranscription(): Promise<void> {
-    return this.client.stop();
+  async stopTranscription(): Promise<void> {
+    this.active = false;
+    await this.client.stop();
+    this.client = this.createClient();
+    this.applyHandlers();
   }
   // 単純化のため未対応
   transcribeAudio(audio: Blob): Promise<STTResponse> {

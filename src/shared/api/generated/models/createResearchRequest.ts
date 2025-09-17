@@ -16,4 +16,6 @@ export interface CreateResearchRequest {
   selectedText?: string;
   /** 音声コマンド */
   voiceCommand?: string;
+  /** 音声認識から得られた元のテキスト */
+  voiceTranscript?: string;
 }

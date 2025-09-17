@@ -13,7 +13,7 @@ import { VoiceCommandHistory } from "../../voiceRecognition/components/VoiceComm
 export function ResearchInterface() {
   const [query, setQuery] = useState("");
   const [researchResult, setResearchResult] = useState<Research | null>(null);
-  const { selectedText, voiceCommand } = useResearchStore();
+  const { selectedText, voiceCommand, voiceTranscript } = useResearchStore();
 
   const executeResearchMutation = useExecuteResearch({
     mutation: {
@@ -63,12 +63,17 @@ export function ResearchInterface() {
         )}
 
         {/* Voice Command Display */}
-        {voiceCommand && (
+        {(voiceCommand || voiceTranscript) && (
           <div className="p-4 bg-green-50 dark:bg-green-900/20 rounded-lg border border-green-200 dark:border-green-800">
             <h3 className="text-sm font-medium mb-2">音声コマンド:</h3>
             <p className="text-sm text-gray-700 dark:text-gray-300">
               {voiceCommand}
             </p>
+            {voiceTranscript && (
+              <p className="text-xs text-gray-600 dark:text-gray-400 mt-2">
+                認識テキスト: {voiceTranscript}
+              </p>
+            )}
           </div>
         )}
 
@@ -92,7 +97,7 @@ export function ResearchInterface() {
             type="button"
             onClick={() => {
               executeResearchMutation.mutate({
-                data: { query, selectedText, voiceCommand },
+                data: { query, selectedText, voiceCommand, voiceTranscript },
               });
             }}
             disabled={!query || executeResearchMutation.isPending}

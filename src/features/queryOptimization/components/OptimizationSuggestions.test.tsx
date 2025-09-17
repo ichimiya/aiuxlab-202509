@@ -1,28 +1,42 @@
 /* @vitest-environment jsdom */
 import React from "react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { OptimizationSuggestions } from "./OptimizationSuggestions";
 
 describe("OptimizationSuggestions", () => {
-  it("観点・理由・追調査を表示する", () => {
+  it("候補ごとのクエリ・カバレッジ・説明を表示する", () => {
     render(
       <OptimizationSuggestions
-        addedAspects={["規制動向", "事故事例"]}
-        improvementReason="曖昧さの解消と具体性の付与"
-        suggestedFollowups={["国際比較", "安全基準"]}
+        candidates={[
+          {
+            id: "candidate-1",
+            query: "AI リスク 安全対策 国際比較",
+            coverageScore: 0.91,
+            coverageExplanation: "安全対策と比較観点を追加",
+            addedAspects: ["安全対策", "国際比較"],
+            improvementReason: "曖昧さの解消",
+            suggestedFollowups: ["各国の規制"],
+          },
+          {
+            id: "candidate-2",
+            query: "AI 事故 重大事例",
+            coverageScore: 0.78,
+            coverageExplanation: "事故観点を補強",
+            addedAspects: ["事故事例"],
+            improvementReason: "事故の具体性を付与",
+            suggestedFollowups: ["事故統計"],
+          },
+        ]}
+        evaluationSummary="安全・事故・規制の観点をカバー"
+        selectedCandidateId="candidate-1"
+        onSelect={vi.fn()}
       />,
     );
 
-    expect(screen.getByText("追加された観点")).toBeTruthy();
-    expect(screen.getByText("規制動向")).toBeTruthy();
-    expect(screen.getByText("事故事例")).toBeTruthy();
-
-    expect(screen.getByText("改善の理由")).toBeTruthy();
-    expect(screen.getByText(/具体性/)).toBeTruthy();
-
-    expect(screen.getByText("推奨追加調査")).toBeTruthy();
-    expect(screen.getByText("国際比較")).toBeTruthy();
-    expect(screen.getByText("安全基準")).toBeTruthy();
+    expect(screen.getByText("AI リスク 安全対策 国際比較")).toBeTruthy();
+    expect(screen.getByText("AI 事故 重大事例")).toBeTruthy();
+    expect(screen.getByText("91%")).toBeTruthy();
+    expect(screen.getByText(/安全・事故・規制/)).toBeTruthy();
   });
 });

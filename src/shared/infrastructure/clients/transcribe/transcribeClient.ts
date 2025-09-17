@@ -253,6 +253,7 @@ export class TranscribeClient {
 
   async start(): Promise<void> {
     if (this.connected) return;
+    this.autoReconnect = true;
     this.updateStatus("connecting");
     if (!this.client) await this.initAws();
     const sr = this.audioContext?.sampleRate ?? (await this.initAudio());
@@ -260,6 +261,7 @@ export class TranscribeClient {
   }
 
   async stop(): Promise<void> {
+    this.autoReconnect = false;
     this.stopping = true;
     this.connected = false;
     this.updateStatus("disconnected");
@@ -285,6 +287,29 @@ export class TranscribeClient {
         this.mediaStream = null;
       }
       this.pcmQueue = [];
+      if (this.client) {
+        try {
+          const destroy = (
+            this.client as TranscribeStreamingClient & {
+              destroy?: () => void;
+            }
+          ).destroy;
+          if (typeof destroy === "function") {
+            destroy.call(this.client);
+          } else {
+            // fetch handlerの場合はprivateなconnectionをclose
+            try {
+              (
+                this.client as unknown as {
+                  config?: { requestHandler?: { destroy?: () => void } };
+                }
+              ).config?.requestHandler?.destroy?.();
+            } catch {}
+          }
+        } catch {}
+        this.client = null;
+      }
+      this.reconnecting = false;
     } finally {
       this.stopping = false;
     }

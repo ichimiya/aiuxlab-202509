@@ -16,7 +16,7 @@ import type {
 import type {
   CreateResearchRequest,
   Error,
-  OptimizationResult,
+  OptimizationResponse,
   QueryOptimizationRequest,
   Research,
 } from "./models";
@@ -113,7 +113,7 @@ export const optimizeQuery = (
   queryOptimizationRequest: QueryOptimizationRequest,
   signal?: AbortSignal,
 ) => {
-  return customInstance<OptimizationResult>({
+  return customInstance<OptimizationResponse>({
     url: `/query-optimization`,
     method: "POST",
     headers: { "Content-Type": "application/json" },
