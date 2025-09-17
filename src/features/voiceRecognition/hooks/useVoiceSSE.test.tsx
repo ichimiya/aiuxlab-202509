@@ -116,7 +116,9 @@ describe("useVoiceSSE", () => {
       MockEventSource.instances[0]?.emit("error", { message: "network" });
     });
 
-    expect(useVoiceRecognitionStore.getState().lastError).toBeTruthy();
+    expect(useVoiceRecognitionStore.getState().lastError).toBe(
+      "SSE接続エラー (エンドポイント未実装または応答なし)",
+    );
     expect(
       useVoiceRecognitionStore.getState().reconnectAttempt,
     ).toBeGreaterThanOrEqual(1);

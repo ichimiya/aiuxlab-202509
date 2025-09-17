@@ -13,6 +13,13 @@ interface UseVoiceSSEOptions {
 const BASE_URL = "/api/voice-events/stream";
 
 function parseMessage<T>(event: MessageEvent<string>): T | null {
+  if (
+    !event ||
+    typeof event.data !== "string" ||
+    event.data.trim().length === 0
+  ) {
+    return null;
+  }
   try {
     return JSON.parse(event.data) as T;
   } catch (error) {
@@ -92,6 +99,15 @@ export function useVoiceSSE({ sessionId, isPrimaryTab }: UseVoiceSSEOptions) {
     reconnectAttemptRef.current =
       useVoiceRecognitionStore.getState().reconnectAttempt;
     const attempt = reconnectAttemptRef.current;
+    const maxAttempts = 5;
+
+    if (attempt > maxAttempts) {
+      setError(
+        "SSE接続に失敗しました。リロードまたはネットワーク設定を確認してください。",
+      );
+      return;
+    }
+
     const delaySeconds = Math.min(2 ** Math.max(attempt - 1, 0), 16);
 
     if (reconnectTimerRef.current) {
@@ -151,14 +167,19 @@ export function useVoiceSSE({ sessionId, isPrimaryTab }: UseVoiceSSEOptions) {
 
     const onErrorEvent = (event: MessageEvent<string>) => {
       const payload = parseMessage<{ message?: string }>(event);
-      handleError(payload?.message);
+      handleError(
+        payload?.message ??
+          "SSE接続エラー (エンドポイント未実装または応答なし)",
+      );
     };
 
     es.addEventListener("open", onOpen);
     es.addEventListener("session_update", onSessionUpdate);
     es.addEventListener("intent_confirmation", onIntentConfirmation);
     es.addEventListener("error", onErrorEvent);
-    es.onerror = () => handleError();
+    es.onerror = (event) => {
+      onErrorEvent(event as MessageEvent<string>);
+    };
   };
 
   return {
