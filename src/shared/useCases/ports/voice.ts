@@ -59,4 +59,5 @@ export interface VoiceIntentClassifierPort {
 
 export interface VoiceNotificationPort {
   publish(event: VoiceSseEvent): Promise<void>;
+  subscribe(listener: (event: VoiceSseEvent) => void): () => void;
 }
