@@ -17,6 +17,9 @@ import type { VoicePattern } from "@/shared/api/generated/models";
 import { createProcessVoiceCommandUseCase } from "@/shared/useCases/ProcessVoiceCommandUseCase/factory";
 import type { VoiceCommandResult } from "@/shared/useCases/ProcessVoiceCommandUseCase";
 import { VoiceOptimizationStatus } from "../types";
+import { VoiceSessionHUD } from "@/features/voiceRecognition/components/VoiceSessionHUD";
+import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
+import { useVoiceSSE } from "@/features/voiceRecognition/hooks/useVoiceSSE";
 
 const STATUS_LABEL: Record<VoiceOptimizationStatus, string> = {
   [VoiceOptimizationStatus.Idle]: "待機中",
@@ -41,6 +44,16 @@ export function QueryOptimizer() {
 
   const voiceUseCase = useMemo(() => createProcessVoiceCommandUseCase(), []);
   const { optimize } = useQueryOptimization();
+  const setVoiceSessionId = useVoiceRecognitionStore(
+    (state) => state.setSessionId,
+  );
+  const setVoiceSessionState = useVoiceRecognitionStore(
+    (state) => state.setSessionState,
+  );
+  const storeSetError = useVoiceRecognitionStore((state) => state.setError);
+  const storeClearError = useVoiceRecognitionStore((state) => state.clearError);
+
+  useVoiceSSE({ sessionId, isPrimaryTab: true });
 
   const isBusy =
     status === VoiceOptimizationStatus.Listening ||
@@ -69,16 +82,40 @@ export function QueryOptimizer() {
       try {
         const optimization = await optimize(payload);
         setSessionId(optimization.sessionId);
+        setVoiceSessionId(optimization.sessionId);
+        setVoiceSessionState({
+          sessionId: optimization.sessionId,
+          status: "ready",
+          candidates: (optimization.result.candidates ?? []).map(
+            (candidate, index) => ({
+              id: candidate.id,
+              query: candidate.query,
+              coverageScore: candidate.coverageScore,
+              rank: index + 1,
+              source: "llm" as const,
+            }),
+          ),
+          selectedCandidateId: optimization.result.recommendedCandidateId,
+          lastUpdatedAt: new Date().toISOString(),
+        });
         setResult(optimization.result);
         setStatus(VoiceOptimizationStatus.Completed);
+        storeClearError();
       } catch (err) {
         const message =
           err instanceof Error ? err.message : "クエリ最適化に失敗しました";
         setError(message);
         setStatus(VoiceOptimizationStatus.Error);
+        storeSetError(message);
       }
     },
-    [optimize],
+    [
+      optimize,
+      setVoiceSessionId,
+      setVoiceSessionState,
+      storeClearError,
+      storeSetError,
+    ],
   );
 
   const handleVoiceOptimization = useCallback(async () => {
@@ -94,11 +131,14 @@ export function QueryOptimizer() {
     }
 
     setError(null);
+    storeClearError();
     setResult(null);
     setSelectedCandidateId(null);
     setLatestTranscript("");
     hasOptimizedRef.current = false;
     setStatus(VoiceOptimizationStatus.Listening);
+    setVoiceSessionId(null);
+    setVoiceSessionState(null);
 
     try {
       await voiceUseCase.processRealTimeAudio(
@@ -112,7 +152,9 @@ export function QueryOptimizer() {
           }
 
           if (!recognizedText) {
-            setError("音声を認識できませんでした");
+            const message = "音声を認識できませんでした";
+            setError(message);
+            storeSetError(message);
             setStatus(VoiceOptimizationStatus.Error);
             void voiceUseCase.stopProcessing().catch(() => undefined);
             return;
@@ -153,8 +195,18 @@ export function QueryOptimizer() {
         err instanceof Error ? err.message : "音声認識を開始できませんでした";
       setError(message);
       setStatus(VoiceOptimizationStatus.Error);
+      storeSetError(message);
     }
-  }, [isBusy, runOptimization, voiceUseCase]);
+  }, [
+    isBusy,
+    runOptimization,
+    voiceUseCase,
+    setVoiceSessionId,
+    setVoiceSessionState,
+    storeClearError,
+    storeSetError,
+    sessionId,
+  ]);
 
   return (
     <div className="space-y-4">
@@ -175,6 +227,8 @@ export function QueryOptimizer() {
           {STATUS_LABEL[status]}
         </span>
       </div>
+
+      <VoiceSessionHUD />
 
       {latestTranscript && (
         <div className="text-sm text-gray-600">

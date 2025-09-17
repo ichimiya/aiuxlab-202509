@@ -12,6 +12,7 @@ import {
 const optimizeMock = vi.fn();
 const processRealTimeAudioMock = vi.fn();
 const stopProcessingMock = vi.fn();
+const useSseMock = vi.fn(() => ({ reconnectAttempt: 0 }));
 
 vi.mock("../hooks/useQueryOptimization", () => ({
   useQueryOptimization: () => ({
@@ -27,6 +28,12 @@ vi.mock("@/shared/useCases/ProcessVoiceCommandUseCase/factory", () => ({
   }),
 }));
 
+vi.mock("@/features/voiceRecognition/hooks/useVoiceSSE", () => ({
+  useVoiceSSE: () => useSseMock(),
+}));
+
+import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
+
 import { QueryOptimizer } from "./QueryOptimizer";
 
 describe("QueryOptimizer", () => {
@@ -35,6 +42,8 @@ describe("QueryOptimizer", () => {
     processRealTimeAudioMock.mockReset();
     stopProcessingMock.mockReset();
     stopProcessingMock.mockResolvedValue(undefined);
+    useVoiceRecognitionStore.getState().reset();
+    useSseMock.mockClear();
   });
 
   const mockCandidates = [
@@ -134,6 +143,10 @@ describe("QueryOptimizer", () => {
       voiceCommand: "deepdive",
       voiceTranscript: transcript,
     });
+
+    const storeState = useVoiceRecognitionStore.getState();
+    expect(storeState.sessionState?.status).toBe("ready");
+    expect(storeState.sessionState?.sessionId).toBe("session-123");
 
     await waitFor(() => {
       expect(screen.getByText("最適化完了")).toBeTruthy();
