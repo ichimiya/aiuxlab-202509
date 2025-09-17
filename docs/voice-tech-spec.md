@@ -190,17 +190,39 @@ type VoiceCommand =
   - イベント種別: `session_update`, `intent_confirmation`, `error`
   - ペイロード例:
 
-```text
-event: session_update
-data: {
-  "sessionId": "qo-ses-...",
-  "status": "ready",
-  "candidates": [...],
-  "selectedCandidateId": "candidate-2"
-}
-```
+````
 
 - SSE接続は1セッション1チャネル。プライマリTabのみ接続するようクライアントで制御
+
+### 4.5 フロントエンド受信フロー
+
+```mermaid
+sequenceDiagram
+  participant Toggle as VoiceToggle
+  participant SSE as SSEClient
+  participant Store as voiceRecognitionStore
+  participant UI as Components
+
+  Toggle->>SSE: open(sessionId)
+  SSE->>SSE: new EventSource(`/api/voice-events/stream?sessionId=...`)
+  SSE->>Store: on session_update
+  Store->>Store: reduceSessionState()
+  Store->>UI: emit selector updates
+  UI->>UI: rerender QueryOptimizer/VoiceStatus
+  SSE->>Store: on intent_confirmation
+  Store->>UI: display confirm modal/toast
+  SSE->>Store: on error
+  Store->>UI: show error toast + retry option
+  SSE-->>Toggle: on close/error notify for reconnect
+````
+
+#### 実装メモ
+
+- `voiceRecognitionStore` に `sessionState`, `pendingIntent`, `lastError` フィールドを追加
+- SSEハンドラは JSON.parse 後、イベント種別に応じた reducer (`applySessionUpdate`, `setPendingIntent`, `setError`) を呼び出す
+- 再接続ポリシー: ネットワークエラー時は 1s → 2s → 4s の指数バックオフ（最大5回）
+- プライマリTab判定: BroadcastChannel か `storage` イベントを使い、アクティブタブが SSE を保持
+- コンポーネント側は `useVoiceRecognitionStore` の selector で状態を購読し、PendingIntentが存在する場合は確認ダイアログを表示
 
 ### 4.4 エラーハンドリング
 
