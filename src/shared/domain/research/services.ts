@@ -14,7 +14,7 @@ import type {
   PerplexityResponse,
   PerplexitySearchResult,
   ResearchContext,
-} from "../../infrastructure/external/perplexity";
+} from "../../infrastructure/external/search/types";
 import type { ContentProcessingPort } from "../../useCases/ports/contentProcessing";
 
 // DOMPurifyの初期化（環境に応じて分岐）

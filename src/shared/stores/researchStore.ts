@@ -4,6 +4,7 @@ import { devtools } from "zustand/middleware";
 export interface ResearchState {
   selectedText: string;
   voiceCommand: string;
+  partialTranscript?: string;
   isListening: boolean;
   currentResearchId: string | null;
   textSelection?: TextSelection;
@@ -13,6 +14,8 @@ export interface ResearchActions {
   setSelectedText: (text: string) => void;
   setVoiceCommand: (command: string) => void;
   setIsListening: (listening: boolean) => void;
+  setPartialTranscript: (text: string) => void;
+  clearPartialTranscript: () => void;
   setCurrentResearchId: (id: string | null) => void;
   setTextSelection: (payload: TextSelection | undefined) => void;
   clearTextSelection: () => void;
@@ -24,6 +27,7 @@ type ResearchStore = ResearchState & ResearchActions;
 const initialState: ResearchState = {
   selectedText: "",
   voiceCommand: "",
+  partialTranscript: "",
   isListening: false,
   currentResearchId: null,
 };
@@ -67,6 +71,20 @@ export const useResearchStore = create<ResearchStore>()(
           (state) => ({ ...state, isListening: listening }),
           false,
           "setIsListening",
+        ),
+
+      setPartialTranscript: (text) =>
+        set(
+          (state) => ({ ...state, partialTranscript: text }),
+          false,
+          "setPartialTranscript",
+        ),
+
+      clearPartialTranscript: () =>
+        set(
+          (state) => ({ ...state, partialTranscript: "" }),
+          false,
+          "clearPartialTranscript",
         ),
 
       setCurrentResearchId: (id) =>

@@ -5,7 +5,7 @@ import type {
   IResearchAPIRepository,
   PerplexityResponse,
   ResearchContext,
-} from "../../infrastructure/external/perplexity";
+} from "../../infrastructure/external/search/types";
 import type { ContentProcessingPort } from "../ports/contentProcessing";
 import { ResearchDomainService } from "../../domain/research/services";
 
