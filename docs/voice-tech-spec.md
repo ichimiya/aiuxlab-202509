@@ -224,8 +224,97 @@ sequenceDiagram
 - プライマリTab判定: BroadcastChannel か `storage` イベントを使い、アクティブタブが SSE を保持
 - コンポーネント側は `useVoiceRecognitionStore` の selector で状態を購読し、PendingIntentが存在する場合は確認ダイアログを表示
 
+#### ストア状態・reducer テスト方針
+
+- **状態構造案**
+  ```ts
+  interface VoiceRecognitionViewState {
+    sessionId: string | null;
+    sessionState: VoiceSessionState | null;
+    pendingIntent: PendingIntent | null;
+    lastError: string | null;
+    reconnectAttempt: number;
+  }
+  ```
+- **Reducer**
+  - `setSessionState(state)` : session_update イベントを反映（候補マージ・status更新）
+  - `setPendingIntent(intent)` : intent_confirmation を保存
+  - `clearPendingIntent()` : ユーザー応答後にクリア
+  - `setError(message)` / `clearError()` : エラー表示制御
+  - `incrementReconnectAttempt()` / `resetReconnectAttempt()` : 再接続制御
+- **テスト観点（Vitest）**
+  1. session_update 受信で候補が上書きされ、statusが更新される
+  2. intent_confirmation で pendingIntent が設定され、ユーザー応答後に clear される
+  3. error イベントで lastError がセットされ、後続の成功イベントで clear される
+  4. reconnectAttempt が上限を超えた場合に SSE 再接続を停止（hooks側で扱う想定）
+
+#### SSEクライアント実装手順（フロント）
+
+1. `useVoiceSSE` フックを作成
+   - 引数: `sessionId`, `isPrimaryTab`
+   - 内部で EventSource を生成し、イベントハンドラを登録
+   - cleanup で `eventSource.close()`
+2. イベントハンドラ
+   - `onmessage`: `JSON.parse(event.data)` → `store.dispatch`
+   - `onerror`: ストアに error を記録し、EventSource を閉じ再接続スケジュール
+3. 再接続ロジック
+   - `reconnectAttempt` に応じて delay (1s, 2s, 4s, 8s, 16s)
+   - 上限到達時はユーザーへ手動再接続ボタン提示
+4. プライマリタブ制御
+   - `useEffect` で `BroadcastChannel('voice-session')` をリッスンし、`isPrimary` フラグを共有
+   - タブ非アクティブ時は EventSource を閉じ、アクティブ復帰時に再接続
+5. UI連携
+   - `VoiceRecognitionButton` で sessionId を生成し `useVoiceSSE` を呼ぶ
+   - `QueryOptimizer` コンポーネントはストア selector で `sessionState` と `pendingIntent` を購読
+   - `PendingIntent` が存在する場合はモーダル or トーストを表示し、ユーザー応答でストアを更新
+
 ### 4.4 エラーハンドリング
 
 - Intent判定APIエラー → `VoiceIntentClassificationError` としてセッションに記録、SSEで通知
 - UseCaseエラーは `error` イベントを送信し、UIにはリトライボタンを提示
 - 連続3回以上の失敗で音声ガイダンス（ヘルプ誘導 Intent）を表示
+
+## 5. Port / Adapter 設計（バックエンド）
+
+### 5.1 インターフェース
+
+```ts
+export interface VoiceEventQueuePort {
+  enqueue(job: VoiceEventJob): Promise<void>;
+}
+
+export interface VoiceSessionStorePort {
+  get(sessionId: string): Promise<VoiceSessionState | null>;
+  set(session: VoiceSessionState): Promise<void>;
+  delete(sessionId: string): Promise<void>;
+}
+
+export interface VoiceIntentClassifierPort {
+  classify(input: VoiceIntentInput): Promise<VoiceIntentResult>;
+}
+
+export interface VoiceNotificationPort {
+  publish(event: VoiceSseEvent): Promise<void>;
+}
+```
+
+### 5.2 Adapter 方針（プロトタイプ）
+
+- `VoiceEventQueuePort`: Node.js 内部キュー（`p-queue`）実装 `InMemoryVoiceEventQueue`
+- `VoiceSessionStorePort`: プロセス内 `Map` をラップする `InMemoryVoiceSessionStore`
+- `VoiceIntentClassifierPort`: Bedrock などLLM APIを呼び出す `LlmIntentClassifier`
+- `VoiceNotificationPort`: SSE への push を行う `SseNotificationAdapter`
+
+### 5.3 将来拡張ポイント
+
+- Queue を Redis/BullMQ へ差し替える場合は `VoiceEventQueuePort` のみ差し替え
+- SessionStore を Redis 等へ移行する場合も Port 実装を切り替え、残りのコードは不変
+- Notification を WebSocket や Kafka へ変更する場合も `VoiceNotificationPort` を置き換える
+- Intent分類ロジックをルールベースにフォールバックする場合は `VoiceIntentClassifierPort` の別Adapterを用意
+
+### 5.4 テスト戦略
+
+- Port にはインターフェースレベルの契約テスト（`InMemory` 実装）を追加
+- QueueAdapter には「enqueue した順序で handler が呼ばれる」などのユニットテスト
+- IntentClassifier は LLMモックを利用したレスポンスハンドリングのテスト
+- NotificationAdapter は SSE用のイベント配信をモックで検証
