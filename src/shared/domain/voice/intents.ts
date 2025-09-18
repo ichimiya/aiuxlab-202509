@@ -1,0 +1,9 @@
+export const VOICE_INTENT_IDS = [
+  "OPTIMIZE_QUERY_APPEND",
+  "OPTIMIZE_QUERY_REPLACE",
+  "START_RESEARCH",
+  "CONFIRM_CANDIDATE_SELECTION",
+  "CANCEL_OPTIMIZATION",
+] as const;
+
+export type VoiceIntentId = (typeof VOICE_INTENT_IDS)[number];

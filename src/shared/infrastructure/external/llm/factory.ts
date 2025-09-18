@@ -5,6 +5,11 @@ import type {
 } from "@/shared/ai/schemas/contentProcessing";
 import { BedrockContentProcessingAdapter } from "@/shared/adapters/llm/bedrock/contentProcessingAdapter";
 import { BedrockQueryOptimizationAdapter } from "@/shared/adapters/llm/bedrock/queryOptimizationAdapter";
+import { BedrockVoiceIntentClassifierAdapter } from "@/shared/adapters/llm/bedrock/voiceIntentClassifierAdapter";
+import type {
+  VoiceIntentClassifierPort,
+  VoiceIntentResult,
+} from "@/shared/useCases/ports/voice";
 
 function provider(): string {
   return (process.env.LLM_PROVIDER || "bedrock").toLowerCase();
@@ -60,4 +65,26 @@ export function createQueryOptimizationAdapter() {
     };
   }
   return new BedrockQueryOptimizationAdapter({});
+}
+
+export function createVoiceIntentClassifier(): VoiceIntentClassifierPort {
+  const p = provider();
+  if (p === "vertex") {
+    const fallback: VoiceIntentClassifierPort = {
+      async classify(input) {
+        const confidence =
+          typeof input.context?.confidence === "number"
+            ? Math.min(Math.max(input.context.confidence, 0), 1)
+            : 0.6;
+        const result: VoiceIntentResult = {
+          intentId: "OPTIMIZE_QUERY_APPEND",
+          confidence,
+          parameters: {},
+        };
+        return result;
+      },
+    };
+    return fallback;
+  }
+  return new BedrockVoiceIntentClassifierAdapter({});
 }

@@ -164,6 +164,8 @@ interface VoiceSessionState {
 }
 ```
 
+> 補足: LLM応答には `confidenceBand` (auto/confirm/reject) や `rationale` が付与される場合があるが、アプリケーション層で必須となるのは `intentId` / `confidence` / `parameters` の3項目。
+
 3. `confidence` を閾値テーブル（`docs/voice-intent-spec.md` 定義）で判定し、`auto`/`confirm`/`reject` を決定
 4. `auto` の場合は Command に変換、`confirm` は `pendingIntent` としてセッションに格納
 

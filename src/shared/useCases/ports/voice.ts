@@ -28,6 +28,13 @@ export interface VoiceSessionState {
   latestTranscript?: string;
   evaluationSummary?: string;
   lastUpdatedAt: string;
+  pendingIntent?: {
+    intentId: string;
+    confidence: number;
+    parameters: Record<string, unknown>;
+    expiresAt: string;
+  };
+  researchSessionId?: string;
 }
 
 export interface VoiceIntentInput {
