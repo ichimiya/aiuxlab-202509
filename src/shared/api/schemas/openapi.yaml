@@ -20,14 +20,97 @@ paths:
             schema:
               $ref: "#/components/schemas/CreateResearchRequest"
       responses:
-        "200":
-          description: リサーチ完了
+        "202":
+          description: リサーチ受付
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Research"
+                $ref: "#/components/schemas/ResearchSnapshot"
         "400":
           description: 無効なリクエスト
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /research/{id}:
+    get:
+      summary: リサーチスナップショットを取得
+      operationId: getResearchSnapshot
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: リサーチスナップショット
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSnapshot"
+        "404":
+          description: 見つかりません
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "500":
+          description: サーバーエラー
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+
+  /research/{id}/events:
+    get:
+      summary: リサーチイベントのSSEストリーム
+      operationId: streamResearchEvents
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: lastEventId
+          required: false
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSEイベントストリーム
+          content:
+            text/event-stream:
+              schema:
+                type: string
+
+  /research/{id}/re-execute:
+    post:
+      summary: 追いリサーチを実行
+      operationId: reExecuteResearch
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: string
+      responses:
+        "202":
+          description: 追いリサーチ受付
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ResearchSnapshot"
+        "404":
+          description: 見つかりません
           content:
             application/json:
               schema:
@@ -248,6 +331,129 @@ components:
           items:
             $ref: "#/components/schemas/ProcessedCitation"
           description: 構造化された引用情報
+    ResearchSnapshot:
+      type: object
+      required:
+        - id
+        - query
+        - status
+        - revision
+        - createdAt
+        - updatedAt
+      properties:
+        id:
+          type: string
+          description: リサーチID
+        query:
+          type: string
+          description: 初期クエリ
+        selectedText:
+          type: string
+          nullable: true
+          description: 選択されたテキスト
+        voiceCommand:
+          type: string
+          nullable: true
+          description: 音声コマンド（構造化済み）
+        status:
+          type: string
+          enum: [pending, completed, failed]
+          description: リサーチ状態
+        revision:
+          type: integer
+          minimum: 1
+          description: スナップショットのリビジョン
+        results:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResearchResultSnapshot"
+        searchResults:
+          type: array
+          items:
+            $ref: "#/components/schemas/ResearchSearchResultSnapshot"
+        citations:
+          type: array
+          items:
+            type: string
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        lastError:
+          type: object
+          nullable: true
+          properties:
+            message:
+              type: string
+            code:
+              type: string
+    ResearchResultSnapshot:
+      type: object
+      required:
+        - id
+        - content
+        - source
+        - relevanceScore
+      properties:
+        id:
+          type: string
+        content:
+          type: string
+        source:
+          type: string
+        relevanceScore:
+          type: number
+        processedCitations:
+          type: array
+          items:
+            $ref: "#/components/schemas/ProcessedCitationSnapshot"
+          nullable: true
+    ProcessedCitationSnapshot:
+      type: object
+      required:
+        - id
+        - number
+        - url
+      properties:
+        id:
+          type: string
+        number:
+          type: integer
+        url:
+          type: string
+          format: uri
+        title:
+          type: string
+          nullable: true
+        domain:
+          type: string
+          nullable: true
+    ResearchSearchResultSnapshot:
+      type: object
+      required:
+        - id
+        - title
+        - url
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        url:
+          type: string
+          format: uri
+        snippet:
+          type: string
+          nullable: true
+        relevanceScore:
+          type: number
+          nullable: true
+        lastUpdated:
+          type: string
+          format: date-time
+          nullable: true
 
     VoicePattern:
       type: string
