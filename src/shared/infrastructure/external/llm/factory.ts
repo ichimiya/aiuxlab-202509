@@ -42,11 +42,19 @@ export function createQueryOptimizationAdapter() {
     return {
       async optimizeQuery() {
         return {
-          optimizedQuery: "",
-          addedAspects: [],
-          improvementReason: "",
-          confidence: 0.5,
-          suggestedFollowups: [],
+          candidates: [
+            {
+              id: "candidate-1",
+              query: "",
+              coverageScore: 0.5,
+              coverageExplanation: "Vertexダミー応答",
+              addedAspects: [],
+              improvementReason: "",
+              suggestedFollowups: [],
+            },
+          ],
+          evaluationSummary: "暫定ダミー応答",
+          recommendedCandidateId: "candidate-1",
         };
       },
     };

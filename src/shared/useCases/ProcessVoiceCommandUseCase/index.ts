@@ -4,7 +4,11 @@
  */
 
 import type { VoicePattern } from "../../api/generated/models";
-import type { SpeechToTextPort, STTResponse } from "../ports/speechToText";
+import type {
+  SpeechToTextPort,
+  STTResponse,
+  STTEventHandlers,
+} from "../ports/speechToText";
 import type { VoiceDomainService } from "../../domain/voice/services";
 
 export interface VoiceCommandResult {
@@ -53,6 +57,10 @@ export class ProcessVoiceCommandUseCase {
     } catch (error) {
       throw new Error(`Real-time voice processing failed: ${error}`);
     }
+  }
+
+  setRealTimeEventHandlers(handlers: STTEventHandlers): void {
+    this.transcribeClient.setEventHandlers(handlers);
   }
 
   /**
@@ -175,6 +183,10 @@ export class ProcessVoiceCommandUseCase {
    */
   getAvailablePatterns(): VoicePattern[] {
     return this.voiceDomainService.getAllPatterns();
+  }
+
+  analyzeTranscript(text: string) {
+    return this.voiceDomainService.parseVoiceCommand(text);
   }
 
   /**

@@ -33,11 +33,19 @@ describe("BedrockQueryOptimizationAdapter", () => {
     });
 
     const payload = {
-      optimizedQuery: "AIの潜在的リスクと安全対策の包括的評価",
-      addedAspects: ["規制動向", "事故事例"],
-      improvementReason: "曖昧さの解消と具体性の付与",
-      confidence: 0.86,
-      suggestedFollowups: ["国際比較", "実装上の安全基準"],
+      candidates: [
+        {
+          id: "candidate-1",
+          query: "AIの潜在的リスクと安全対策の包括的評価",
+          coverageScore: 0.86,
+          coverageExplanation: "安全対策と事故事例を追加",
+          addedAspects: ["規制動向", "事故事例"],
+          improvementReason: "曖昧さの解消と具体性の付与",
+          suggestedFollowups: ["国際比較", "実装上の安全基準"],
+        },
+      ],
+      evaluationSummary: "安全・事故観点で強化",
+      recommendedCandidateId: "candidate-1",
     };
     const body = new TextEncoder().encode(
       JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
@@ -51,7 +59,7 @@ describe("BedrockQueryOptimizationAdapter", () => {
     };
 
     const result = await client.optimizeQuery(req);
-    expect(result.optimizedQuery).toMatch(/リスク|安全/);
+    expect(result.candidates[0].query).toMatch(/リスク|安全/);
     const last = invokedInputs.at(-1);
     const sent = JSON.parse(last.body);
     const content: string = sent.messages?.[0]?.content as string;
@@ -74,11 +82,17 @@ describe("BedrockQueryOptimizationAdapter", () => {
   it("プロンプトに厳密JSON出力指示とセクションが含まれる", async () => {
     const client = new BedrockQueryOptimizationAdapter();
     const payload = {
-      optimizedQuery: "test",
-      addedAspects: [],
-      improvementReason: "",
-      confidence: 0.5,
-      suggestedFollowups: [],
+      candidates: [
+        {
+          id: "candidate-1",
+          query: "test",
+          coverageScore: 0.5,
+          coverageExplanation: "",
+          addedAspects: [],
+          improvementReason: "",
+          suggestedFollowups: [],
+        },
+      ],
     };
     const body = new TextEncoder().encode(
       JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
@@ -90,9 +104,9 @@ describe("BedrockQueryOptimizationAdapter", () => {
     const sent = JSON.parse(last.body);
     const content: string = sent.messages?.[0]?.content as string;
     expect(content).toContain("### OUTPUT_JSON_ONLY");
-    expect(content).toContain("optimizedQuery");
-    expect(content).toContain("addedAspects");
-    expect(content).toContain("suggestedFollowups");
+    expect(content).toContain("candidates");
+    expect(content).toContain("coverageScore");
+    expect(content).toContain("coverageExplanation");
     expect(content).toContain("### CONTEXT");
     expect(content).toContain("### PRINCIPLES");
   });
@@ -102,11 +116,17 @@ describe("BedrockQueryOptimizationAdapter", () => {
     vi.setSystemTime(new Date("2025-09-06T00:00:00Z"));
     const client = new BedrockQueryOptimizationAdapter();
     const payload = {
-      optimizedQuery: "test",
-      addedAspects: [],
-      improvementReason: "",
-      confidence: 0.5,
-      suggestedFollowups: [],
+      candidates: [
+        {
+          id: "candidate-1",
+          query: "test",
+          coverageScore: 0.5,
+          coverageExplanation: "",
+          addedAspects: [],
+          improvementReason: "",
+          suggestedFollowups: [],
+        },
+      ],
     };
     const body = new TextEncoder().encode(
       JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
@@ -126,11 +146,17 @@ describe("BedrockQueryOptimizationAdapter", () => {
   it("プロンプトに最小拡張ポリシーが含まれ、過剰な拡張を抑制する指示がある", async () => {
     const client = new BedrockQueryOptimizationAdapter();
     const payload = {
-      optimizedQuery: "test",
-      addedAspects: [],
-      improvementReason: "",
-      confidence: 0.5,
-      suggestedFollowups: [],
+      candidates: [
+        {
+          id: "candidate-1",
+          query: "test",
+          coverageScore: 0.5,
+          coverageExplanation: "",
+          addedAspects: [],
+          improvementReason: "",
+          suggestedFollowups: [],
+        },
+      ],
     };
     const body = new TextEncoder().encode(
       JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),

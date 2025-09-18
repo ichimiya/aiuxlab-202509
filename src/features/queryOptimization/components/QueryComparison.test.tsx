@@ -6,19 +6,27 @@ import "@testing-library/jest-dom/vitest";
 import { QueryComparison } from "./QueryComparison";
 
 describe("QueryComparison", () => {
-  it("最適化前後のテキストを表示し、追加語を<mark>で強調", () => {
+  it("選択した候補クエリと差分ハイライトを表示する", () => {
     const original = "AI 危険";
-    const optimized = "AI 危険 安全対策"; // 追加: 安全対策
+    const candidate = {
+      id: "candidate-1",
+      query: "AI 危険 安全対策",
+      coverageScore: 0.88,
+      coverageExplanation: "安全対策観点を追加",
+      addedAspects: ["安全対策"],
+      improvementReason: "曖昧さを排除",
+      suggestedFollowups: ["国際比較"],
+    };
 
-    render(<QueryComparison original={original} optimized={optimized} />);
+    render(<QueryComparison original={original} candidate={candidate} />);
 
     const before = screen.getByRole("region", { name: "最適化前" });
-    const after = screen.getByRole("region", { name: "最適化後" });
+    const after = screen.getByRole("region", { name: "候補クエリ" });
 
     expect(within(before).getByText(original)).toBeTruthy();
 
-    // 追加語が<mark>で強調表示されている
     const mark = within(after).getByText("安全対策");
     expect(mark.tagName).toBe("MARK");
+    expect(within(after).getByText("88%"));
   });
 });

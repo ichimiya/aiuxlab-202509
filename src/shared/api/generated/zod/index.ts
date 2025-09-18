@@ -14,6 +14,10 @@ export const executeResearchBody = zod.object({
   query: zod.string().min(1).describe("リサーチクエリ"),
   selectedText: zod.string().optional().describe("選択されたテキスト"),
   voiceCommand: zod.string().optional().describe("音声コマンド"),
+  voiceTranscript: zod
+    .string()
+    .optional()
+    .describe("音声認識から得られた元のテキスト"),
 });
 
 export const executeResearchResponse = zod.object({
@@ -79,6 +83,10 @@ export const executeResearchResponse = zod.object({
 /**
  * @summary クエリ最適化を実行
  */
+export const optimizeQueryBodyUserContextPreviousOptimizationsItemCandidatesItemCoverageScoreMin = 0;
+
+export const optimizeQueryBodyUserContextPreviousOptimizationsItemCandidatesItemCoverageScoreMax = 1;
+
 export const optimizeQueryBody = zod.object({
   originalQuery: zod.string().min(1).describe("元の曖昧クエリ"),
   selectedText: zod.string().optional().describe("選択テキスト"),
@@ -95,6 +103,11 @@ export const optimizeQueryBody = zod.object({
     ])
     .optional()
     .describe("音声解釈パターン"),
+  voiceTranscript: zod
+    .string()
+    .optional()
+    .describe("音声認識から得られた元のテキスト"),
+  sessionId: zod.string().optional().describe("クエリ最適化セッションID"),
   researchHistory: zod
     .array(
       zod.object({
@@ -171,13 +184,47 @@ export const optimizeQueryBody = zod.object({
       previousOptimizations: zod
         .array(
           zod.object({
-            optimizedQuery: zod.string().describe("最適化されたクエリ"),
-            addedAspects: zod.array(zod.string()).describe("追加された観点"),
-            improvementReason: zod.string().describe("改善の理由"),
-            confidence: zod.number().describe("信頼度（0-1）"),
-            suggestedFollowups: zod
-              .array(zod.string())
-              .describe("推奨追加調査"),
+            candidates: zod
+              .array(
+                zod.object({
+                  id: zod.string().describe("候補を一意に識別するID"),
+                  query: zod.string().describe("提案クエリ"),
+                  coverageScore: zod
+                    .number()
+                    .min(
+                      optimizeQueryBodyUserContextPreviousOptimizationsItemCandidatesItemCoverageScoreMin,
+                    )
+                    .max(
+                      optimizeQueryBodyUserContextPreviousOptimizationsItemCandidatesItemCoverageScoreMax,
+                    )
+                    .describe("ユーザー要件を満たしている度合い（0-1）"),
+                  coverageExplanation: zod
+                    .string()
+                    .describe("スコアの理由や含まれる要件の説明"),
+                  addedAspects: zod
+                    .array(zod.string())
+                    .optional()
+                    .describe("特に補強した観点"),
+                  improvementReason: zod
+                    .string()
+                    .optional()
+                    .describe("クエリがどのように改善されたか"),
+                  suggestedFollowups: zod
+                    .array(zod.string())
+                    .optional()
+                    .describe("候補クエリに基づく追加調査案"),
+                }),
+              )
+              .min(1)
+              .describe("最適化されたクエリ候補の一覧"),
+            evaluationSummary: zod
+              .string()
+              .optional()
+              .describe("候補全体に関するまとめとアドバイス"),
+            recommendedCandidateId: zod
+              .string()
+              .optional()
+              .describe("LLMが推奨する候補のID"),
           }),
         )
         .optional(),
@@ -185,10 +232,49 @@ export const optimizeQueryBody = zod.object({
     .nullish(),
 });
 
+export const optimizeQueryResponseResultCandidatesItemCoverageScoreMin = 0;
+
+export const optimizeQueryResponseResultCandidatesItemCoverageScoreMax = 1;
+
 export const optimizeQueryResponse = zod.object({
-  optimizedQuery: zod.string().describe("最適化されたクエリ"),
-  addedAspects: zod.array(zod.string()).describe("追加された観点"),
-  improvementReason: zod.string().describe("改善の理由"),
-  confidence: zod.number().describe("信頼度（0-1）"),
-  suggestedFollowups: zod.array(zod.string()).describe("推奨追加調査"),
+  sessionId: zod.string().describe("クエリ最適化セッションID"),
+  result: zod.object({
+    candidates: zod
+      .array(
+        zod.object({
+          id: zod.string().describe("候補を一意に識別するID"),
+          query: zod.string().describe("提案クエリ"),
+          coverageScore: zod
+            .number()
+            .min(optimizeQueryResponseResultCandidatesItemCoverageScoreMin)
+            .max(optimizeQueryResponseResultCandidatesItemCoverageScoreMax)
+            .describe("ユーザー要件を満たしている度合い（0-1）"),
+          coverageExplanation: zod
+            .string()
+            .describe("スコアの理由や含まれる要件の説明"),
+          addedAspects: zod
+            .array(zod.string())
+            .optional()
+            .describe("特に補強した観点"),
+          improvementReason: zod
+            .string()
+            .optional()
+            .describe("クエリがどのように改善されたか"),
+          suggestedFollowups: zod
+            .array(zod.string())
+            .optional()
+            .describe("候補クエリに基づく追加調査案"),
+        }),
+      )
+      .min(1)
+      .describe("最適化されたクエリ候補の一覧"),
+    evaluationSummary: zod
+      .string()
+      .optional()
+      .describe("候補全体に関するまとめとアドバイス"),
+    recommendedCandidateId: zod
+      .string()
+      .optional()
+      .describe("LLMが推奨する候補のID"),
+  }),
 });

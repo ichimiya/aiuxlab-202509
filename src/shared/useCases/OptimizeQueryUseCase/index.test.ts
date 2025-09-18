@@ -20,26 +20,42 @@ describe("OptimizeQueryUseCase (Application Layer)", () => {
     const req: QueryOptimizationRequest = {
       originalQuery: "AIって危険？",
       selectedText: "[自動運転事故のニュース記事の抜粋]",
-      voiceCommand: "deepdive",
+      voiceCommand: "deepdive" as any,
+      voiceTranscript: "AIって危険？詳しく教えて",
     };
 
     vi.mocked(mockRepository.optimizeQuery).mockResolvedValueOnce({
-      optimizedQuery: "AI技術のリスク要因と安全対策の包括的評価",
-      addedAspects: ["規制動向", "事故事例", "規制動向"],
-      improvementReason: "曖昧さの解消と観点追加",
-      confidence: 1.2,
-      suggestedFollowups: ["国際比較", "近年の規制改正"],
-    });
+      candidates: [
+        {
+          id: "",
+          query: "AI リスク 安全対策 国際比較",
+          coverageScore: 1.3,
+          coverageExplanation: "安全対策と比較観点を追加",
+          addedAspects: ["安全対策", "安全対策", "国際比較"],
+          improvementReason: "曖昧さの解消と多角化",
+          suggestedFollowups: ["被害規模別の事故統計", "国際的な安全基準"],
+        },
+        {
+          query: "AI リスク 技術別 事故",
+          coverageScore: 0.42,
+          coverageExplanation: "技術カテゴリ別の事故分析",
+          addedAspects: ["技術カテゴリ"],
+          improvementReason: "技術観点の明示",
+          suggestedFollowups: ["具体的な事故ケース"],
+        },
+      ],
+      evaluationSummary: "安全対策と事故観点を強化",
+    } as any);
 
     const result = await useCase.execute(req);
 
-    expect(mockRepository.optimizeQuery).toHaveBeenCalled();
-    expect(result.optimizedQuery).toMatch(/リスク要因/);
-    // 重複が除去されている
-    expect(new Set(result.addedAspects).size).toBe(result.addedAspects.length);
-    // 信頼度は0-1にクランプ
-    expect(result.confidence).toBeLessThanOrEqual(1);
-    expect(result.confidence).toBeGreaterThanOrEqual(0);
+    expect(mockRepository.optimizeQuery).toHaveBeenCalledWith(req);
+    expect(Array.isArray(result.candidates)).toBe(true);
+    expect(result.candidates).toHaveLength(3);
+    expect(result.candidates[0].coverageScore).toBeLessThanOrEqual(1);
+    expect(result.candidates[0].addedAspects).toEqual(["安全対策", "国際比較"]);
+    expect(result.recommendedCandidateId).toBe("candidate-1");
+    expect(result.candidates[2].id).toBe("candidate-3");
   });
 
   it("異常系: 空クエリでバリデーションエラー", async () => {

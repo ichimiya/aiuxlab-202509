@@ -21,7 +21,9 @@ export class OptimizeQueryUseCase {
 
     try {
       const raw = await this.repository.optimizeQuery(req);
-      return QueryOptimizationDomainService.formatOptimizationResult(raw);
+      return QueryOptimizationDomainService.formatOptimizationResult(raw, {
+        fallbackQuery: req.originalQuery,
+      });
     } catch (error) {
       throw new Error(
         `Query optimization failed: ${error instanceof Error ? error.message : "Unknown error"}`,

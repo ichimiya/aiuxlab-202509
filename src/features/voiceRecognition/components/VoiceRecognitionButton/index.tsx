@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import { useVoiceRecognitionButtonViewModel } from "./useVoiceRecognitionButtonViewModel";
 
 interface Props {

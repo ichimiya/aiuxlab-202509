@@ -1,44 +1,79 @@
 /* @vitest-environment jsdom */
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, act } from "@testing-library/react";
+import { QueryOptimizer } from "./QueryOptimizer";
+import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
 
-const optimizeMock = vi.fn();
-vi.mock("../hooks/useQueryOptimization", () => ({
-  useQueryOptimization: () => ({
-    optimize: optimizeMock,
-    isPending: false,
-    isSuccess: true,
-    data: {
-      optimizedQuery: "AI 危険 安全対策",
-      addedAspects: ["安全対策"],
-      improvementReason: "具体性付与",
-      confidence: 0.9,
-      suggestedFollowups: ["規制動向"],
-    },
-  }),
+vi.mock("@/features/voiceRecognition/hooks/useVoiceSSE", () => ({
+  useVoiceSSE: () => ({ reconnectAttempt: 0 }),
 }));
 
-import { QueryOptimizer } from "./QueryOptimizer";
+vi.mock(
+  "@/features/voiceRecognition/components/VoiceRecognitionButton",
+  () => ({
+    VoiceRecognitionButton: () => <button type="button">音声認識トグル</button>,
+  }),
+);
 
 describe("QueryOptimizer", () => {
   beforeEach(() => {
-    optimizeMock.mockReset();
+    useVoiceRecognitionStore.getState().reset();
   });
 
-  it("クエリ入力→最適化ボタンでoptimizeが呼ばれ、結果UIが表示される", async () => {
+  it("SSEから受け取ったセッション候補を表示する", () => {
     render(<QueryOptimizer />);
 
-    const textarea = screen.getByLabelText("クエリ");
-    fireEvent.change(textarea, { target: { value: "AI 危険" } });
+    act(() => {
+      useVoiceRecognitionStore.getState().setSessionState({
+        sessionId: "session-1",
+        status: "ready",
+        candidates: [
+          {
+            id: "candidate-1",
+            query: "AI 安全対策 重大事例",
+            coverageScore: 0.92,
+            coverageExplanation: "安全対策と事故事例を補強",
+            addedAspects: ["安全対策", "事故事例"],
+            improvementReason: "曖昧さを解消",
+            suggestedFollowups: ["各国の規制"],
+            rank: 1,
+            source: "llm",
+          },
+        ],
+        selectedCandidateId: "candidate-1",
+        lastUpdatedAt: new Date().toISOString(),
+        currentQuery: "AI 安全対策",
+        latestTranscript: "AI 安全対策を詳しく知りたい",
+        evaluationSummary: "安全面を補強",
+      });
+    });
 
-    const button = screen.getByRole("button", { name: "最適化" });
-    fireEvent.click(button);
+    expect(screen.getByText("AI 安全対策 重大事例")).toBeDefined();
+    expect(screen.getByText("AI 安全対策を詳しく知りたい")).toBeDefined();
+    expect(screen.getByText("現在の検索クエリ:")).toBeDefined();
+    expect(screen.getByText("要約:")).toBeDefined();
+  });
 
-    expect(optimizeMock).toHaveBeenCalledWith({ originalQuery: "AI 危険" });
+  it("エラーステートを表示する", () => {
+    render(<QueryOptimizer />);
 
-    // 結果表示（ComparisonとSuggestionsの一部が描画される）
-    expect(screen.getByRole("region", { name: "最適化後" })).toBeTruthy();
-    expect(screen.getByText("追加された観点")).toBeTruthy();
+    act(() => {
+      useVoiceRecognitionStore.getState().setError("音声認識エラー");
+    });
+
+    expect(screen.getByText("音声認識エラー")).toBeDefined();
+  });
+
+  it("リスニング状態に応じたステータスラベルを表示する", () => {
+    render(<QueryOptimizer />);
+
+    expect(screen.getByText("待機中")).toBeDefined();
+
+    act(() => {
+      useVoiceRecognitionStore.getState().startListening();
+    });
+
+    expect(screen.getByText("音声認識中...")).toBeDefined();
   });
 });

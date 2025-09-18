@@ -2,12 +2,12 @@ import { useMutation } from "@tanstack/react-query";
 import { optimizeQuery } from "@/shared/api/generated/api";
 import type {
   QueryOptimizationRequest,
-  OptimizationResult,
+  OptimizationResponse,
 } from "@/shared/api/generated/models";
 
 export function useQueryOptimization() {
   const mutation = useMutation<
-    OptimizationResult,
+    OptimizationResponse,
     unknown,
     QueryOptimizationRequest
   >({

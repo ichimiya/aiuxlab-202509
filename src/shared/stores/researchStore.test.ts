@@ -12,6 +12,7 @@ describe("researchStore", () => {
 
     expect(state.selectedText).toBe("");
     expect(state.voiceCommand).toBe("");
+    expect((state as any).voiceTranscript).toBe("");
     expect(state.isListening).toBe(false);
     expect(state.currentResearchId).toBe(null);
   });
@@ -30,6 +31,18 @@ describe("researchStore", () => {
     setVoiceCommand("もっと詳しく");
 
     expect(useResearchStore.getState().voiceCommand).toBe("もっと詳しく");
+  });
+
+  it("setVoiceTranscriptが正しく動作する", () => {
+    const { setVoiceTranscript } = useResearchStore.getState() as any;
+
+    expect(typeof setVoiceTranscript).toBe("function");
+
+    setVoiceTranscript("AIって危険？詳しく");
+
+    expect((useResearchStore.getState() as any).voiceTranscript).toBe(
+      "AIって危険？詳しく",
+    );
   });
 
   it("setIsListeningが正しく動作する", () => {
@@ -53,6 +66,7 @@ describe("researchStore", () => {
       setSelectedText,
       setVoiceCommand,
       setIsListening,
+      setVoiceTranscript,
       setCurrentResearchId,
       reset,
     } = useResearchStore.getState();
@@ -61,6 +75,7 @@ describe("researchStore", () => {
     setSelectedText("テキスト");
     setVoiceCommand("コマンド");
     setIsListening(true);
+    setVoiceTranscript("AIって危険？");
     setCurrentResearchId("id-123");
 
     // リセット実行
@@ -70,6 +85,7 @@ describe("researchStore", () => {
     const state = useResearchStore.getState();
     expect(state.selectedText).toBe("");
     expect(state.voiceCommand).toBe("");
+    expect((state as any).voiceTranscript).toBe("");
     expect(state.isListening).toBe(false);
     expect(state.currentResearchId).toBe(null);
   });
