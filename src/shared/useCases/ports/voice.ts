@@ -4,6 +4,7 @@ export interface VoiceEventJob {
   transcript: string;
   confidence: number;
   isFinal: boolean;
+  pattern?: string | null;
   metadata: {
     locale: string;
     device: string;
@@ -11,17 +12,21 @@ export interface VoiceEventJob {
   };
 }
 
+import type { OptimizationCandidate } from "@/shared/api/generated/models";
+
 export interface VoiceSessionState {
   sessionId: string;
   status: "idle" | "optimizing" | "ready" | "researching";
-  candidates: Array<{
-    id: string;
-    query: string;
-    coverageScore: number;
-    rank: number;
-    source: "llm" | "manual";
-  }>;
+  candidates: Array<
+    OptimizationCandidate & {
+      rank: number;
+      source: "llm" | "manual";
+    }
+  >;
   selectedCandidateId?: string;
+  currentQuery?: string;
+  latestTranscript?: string;
+  evaluationSummary?: string;
   lastUpdatedAt: string;
 }
 

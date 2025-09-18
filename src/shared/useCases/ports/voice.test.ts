@@ -42,6 +42,45 @@ describe("Voiceポートのインメモリアダプタ", () => {
     expect(handled).toEqual(["s1", "s1"]);
   });
 
+  it("異なるセッションは並列に処理されるが、同一セッションは逐次実行される", async () => {
+    const activeBySession = new Map<string, number>();
+    let sessionBStartedWhileAStrunning = false;
+
+    const queue = new InMemoryVoiceEventQueue(async (job) => {
+      const currentActive = (activeBySession.get(job.sessionId) ?? 0) + 1;
+      activeBySession.set(job.sessionId, currentActive);
+
+      expect(currentActive).toBe(1);
+
+      if (job.sessionId === "session-a") {
+        await new Promise((resolve) => setTimeout(resolve, 25));
+      } else if (job.sessionId === "session-b") {
+        if ((activeBySession.get("session-a") ?? 0) === 1) {
+          sessionBStartedWhileAStrunning = true;
+        }
+        await new Promise((resolve) => setTimeout(resolve, 5));
+      }
+
+      activeBySession.set(job.sessionId, currentActive - 1);
+    });
+
+    const jobBase = {
+      sessionId: "session-a",
+      timestamp: new Date().toISOString(),
+      confidence: 0.9,
+      isFinal: true,
+      metadata: { locale: "ja-JP", device: "web", chunkSeq: 1 },
+      transcript: "dummy",
+    } satisfies VoiceEventJob;
+
+    await Promise.all([
+      queue.enqueue({ ...jobBase }),
+      queue.enqueue({ ...jobBase, sessionId: "session-b" }),
+    ]);
+
+    expect(sessionBStartedWhileAStrunning).toBe(true);
+  });
+
   it("VoiceSessionStoreで状態を保存・取得できる", async () => {
     const store = new InMemoryVoiceSessionStore();
     const state: VoiceSessionState = {

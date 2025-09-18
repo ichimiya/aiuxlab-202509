@@ -61,6 +61,8 @@
 4. Intent推定 → Command生成 → UseCase呼び出し
 5. 処理完了後、セッション状態を更新し、通知（SSE）を送信
 
+> 実装メモ (2025-09-18): `/api/voice-events` で受け取ったイベントは `InMemoryVoiceEventQueue` がセッション単位で逐次処理する。ワーカー (`processVoiceEvent`) は Redis (`qo:session:*`) に履歴を保存しつつ `createOptimizeQueryUseCase` を呼び出し、結果を `session_update` SSE として送信する。
+
 ### 2.3 ジョブ定義
 
 ```ts
@@ -83,6 +85,8 @@ interface VoiceEventJob {
 - イベント処理中に例外発生時は即座に1回再試行（同期フォールバック）
 - 連続失敗時はセッションステータスを `error` に遷移させ、ユーザーへ通知
 - セッションロック取得不能（他イベント処理中）の場合は次のtickで再度キューイング
+
+> 文脈マージ実装: 直近候補のクエリをベースに新しい発話を連結（重複語句は除外）し、`VoicePattern` はメタデータとして保持。短い追加発話（例: 地名や指示語）でも継続的にクエリへ織り込み、連続発話の意図を保持する。
 
 ### 2.5 スケーリング / 将来拡張
 

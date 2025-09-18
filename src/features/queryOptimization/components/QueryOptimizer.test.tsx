@@ -1,236 +1,79 @@
 /* @vitest-environment jsdom */
 import React from "react";
-import { describe, it, expect, vi, beforeEach } from "vitest";
-import {
-  render,
-  screen,
-  fireEvent,
-  act,
-  waitFor,
-} from "@testing-library/react";
-
-const optimizeMock = vi.fn();
-const processRealTimeAudioMock = vi.fn();
-
-let voiceCallback:
-  | ((result: {
-      originalText: string;
-      pattern: string | null;
-      confidence: number;
-      alternatives?: Array<{ transcript: string; confidence: number }>;
-      isPartial?: boolean;
-    }) => void)
-  | undefined;
-const stopProcessingMock = vi.fn();
-const useSseMock = vi.fn(() => ({ reconnectAttempt: 0 }));
-
-vi.mock("../hooks/useQueryOptimization", () => ({
-  useQueryOptimization: () => ({
-    optimize: optimizeMock,
-  }),
-}));
-
-vi.mock("@/shared/useCases/ProcessVoiceCommandUseCase/factory", () => ({
-  createProcessVoiceCommandUseCase: () => ({
-    processRealTimeAudio: processRealTimeAudioMock,
-    stopProcessing: stopProcessingMock,
-    isProcessing: false,
-  }),
-}));
-
-vi.mock("@/features/voiceRecognition/hooks/useVoiceSSE", () => ({
-  useVoiceSSE: () => useSseMock(),
-}));
-
+import { describe, it, expect, beforeEach, vi } from "vitest";
+import { render, screen, act } from "@testing-library/react";
+import { QueryOptimizer } from "./QueryOptimizer";
 import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
 
-import { QueryOptimizer } from "./QueryOptimizer";
+vi.mock("@/features/voiceRecognition/hooks/useVoiceSSE", () => ({
+  useVoiceSSE: () => ({ reconnectAttempt: 0 }),
+}));
+
+vi.mock(
+  "@/features/voiceRecognition/components/VoiceRecognitionButton",
+  () => ({
+    VoiceRecognitionButton: () => <button type="button">音声認識トグル</button>,
+  }),
+);
 
 describe("QueryOptimizer", () => {
   beforeEach(() => {
-    optimizeMock.mockReset();
-    processRealTimeAudioMock.mockReset();
-    voiceCallback = undefined;
-    stopProcessingMock.mockReset();
-    stopProcessingMock.mockResolvedValue(undefined);
     useVoiceRecognitionStore.getState().reset();
-    useSseMock.mockClear();
-
-    processRealTimeAudioMock.mockImplementation((cb: (result: any) => void) => {
-      voiceCallback = cb;
-      return Promise.resolve();
-    });
   });
 
-  const mockCandidates = [
-    {
-      id: "candidate-1",
-      query: "AI 安全対策 重大事例",
-      coverageScore: 0.92,
-      coverageExplanation: "安全対策と事故事例を補強",
-      addedAspects: ["安全対策", "事故事例"],
-      improvementReason: "曖昧さを解消",
-      suggestedFollowups: ["各国の規制"],
-    },
-    {
-      id: "candidate-2",
-      query: "AI リスク 法規制 比較",
-      coverageScore: 0.81,
-      coverageExplanation: "法規制の観点を追加",
-      addedAspects: ["法規制"],
-      improvementReason: "規制比較を明確化",
-      suggestedFollowups: ["国際標準"],
-    },
-    {
-      id: "candidate-3",
-      query: "AI 安全対策 実務ガイド",
-      coverageScore: 0.74,
-      coverageExplanation: "実務への適用に焦点",
-      addedAspects: ["実務ガイド"],
-      improvementReason: "実践的な観点を追加",
-      suggestedFollowups: ["導入事例"],
-    },
-  ];
-
-  const setupOptimizationMock = () => {
-    optimizeMock.mockResolvedValueOnce({
-      sessionId: "session-123",
-      result: {
-        candidates: mockCandidates,
-        evaluationSummary: "安全・規制・実務の3軸で補強",
-        recommendedCandidateId: "candidate-1",
-      },
-    });
-  };
-
-  const ensureStartButton = async () => {
-    const existingStart = screen.queryByRole("button", {
-      name: "音声認識開始",
-    });
-    if (existingStart) {
-      return existingStart;
-    }
-
-    const stopButton = await screen.findByRole("button", {
-      name: "音声認識停止",
-    });
-
-    await act(async () => {
-      fireEvent.click(stopButton);
-    });
-
-    return screen.findByRole("button", {
-      name: "音声認識開始",
-    });
-  };
-
-  const runVoiceFlow = async (
-    transcript: string,
-    options: { pattern?: string | null } = {},
-  ) => {
-    const startButton = await ensureStartButton();
-
-    await act(async () => {
-      fireEvent.click(startButton);
-    });
-
-    await waitFor(() => expect(processRealTimeAudioMock).toHaveBeenCalled());
-    expect(screen.getByText("音声認識中...")).toBeTruthy();
-
-    act(() => {
-      voiceCallback?.({
-        originalText: transcript.slice(0, 5),
-        pattern: options.pattern ?? null,
-        confidence: 0.6,
-        isPartial: true,
-      });
-    });
-    expect(screen.getByText("文字起こし中...")).toBeTruthy();
-
-    await act(async () => {
-      voiceCallback?.({
-        originalText: transcript,
-        pattern: options.pattern ?? "deepdive",
-        confidence: 0.92,
-        isPartial: false,
-      });
-    });
-  };
-
-  it("音声認識完了で自動的に最適化を実行し、結果を表示する", async () => {
-    setupOptimizationMock();
+  it("SSEから受け取ったセッション候補を表示する", () => {
     render(<QueryOptimizer />);
 
-    const transcript = "AIの安全対策を詳しく";
-    await runVoiceFlow(transcript);
-
-    expect(optimizeMock).toHaveBeenCalledWith({
-      originalQuery: transcript,
-      voiceCommand: "deepdive",
-      voiceTranscript: transcript,
-    });
-
-    const storeState = useVoiceRecognitionStore.getState();
-    expect(storeState.sessionState?.status).toBe("ready");
-    expect(storeState.sessionState?.sessionId).toBe("session-123");
-
-    await waitFor(() => {
-      expect(optimizeMock).toHaveBeenCalled();
-      expect(screen.getByText("AI 安全対策 重大事例")).toBeTruthy();
-    });
-    expect(screen.getAllByText("92%").length).toBeGreaterThan(0);
-
-    const stopButton = screen.getByRole("button", { name: "音声認識停止" });
     act(() => {
-      fireEvent.click(stopButton);
-    });
-  });
-
-  it("2回連続で音声最適化を実行できる", async () => {
-    setupOptimizationMock();
-    optimizeMock.mockResolvedValueOnce({
-      sessionId: "session-123",
-      result: {
+      useVoiceRecognitionStore.getState().setSessionState({
+        sessionId: "session-1",
+        status: "ready",
         candidates: [
           {
             id: "candidate-1",
-            query: "AI 倫理 ガバナンス 国際比較",
-            coverageScore: 0.83,
-            coverageExplanation: "倫理とガバナンスの観点を強化",
-            addedAspects: ["倫理", "ガバナンス"],
-            improvementReason: "国際比較を明確化",
+            query: "AI 安全対策 重大事例",
+            coverageScore: 0.92,
+            coverageExplanation: "安全対策と事故事例を補強",
+            addedAspects: ["安全対策", "事故事例"],
+            improvementReason: "曖昧さを解消",
             suggestedFollowups: ["各国の規制"],
+            rank: 1,
+            source: "llm",
           },
         ],
-        evaluationSummary: "倫理・ガバナンスの観点を網羅",
-        recommendedCandidateId: "candidate-1",
-      },
+        selectedCandidateId: "candidate-1",
+        lastUpdatedAt: new Date().toISOString(),
+        currentQuery: "AI 安全対策",
+        latestTranscript: "AI 安全対策を詳しく知りたい",
+        evaluationSummary: "安全面を補強",
+      });
     });
 
+    expect(screen.getByText("AI 安全対策 重大事例")).toBeDefined();
+    expect(screen.getByText("AI 安全対策を詳しく知りたい")).toBeDefined();
+    expect(screen.getByText("現在の検索クエリ:")).toBeDefined();
+    expect(screen.getByText("要約:")).toBeDefined();
+  });
+
+  it("エラーステートを表示する", () => {
     render(<QueryOptimizer />);
 
-    const transcript1 = "AIの安全対策を詳しく";
-    await runVoiceFlow(transcript1, { pattern: "deepdive" });
-
-    expect(optimizeMock).toHaveBeenNthCalledWith(1, {
-      originalQuery: transcript1,
-      voiceCommand: "deepdive",
-      voiceTranscript: transcript1,
-    });
-
-    const transcript2 = "AIの倫理とガバナンス";
-    await runVoiceFlow(transcript2, { pattern: "perspective" });
-
-    expect(optimizeMock).toHaveBeenNthCalledWith(2, {
-      originalQuery: transcript2,
-      voiceCommand: "perspective",
-      voiceTranscript: transcript2,
-      sessionId: "session-123",
-    });
-
-    const stopButton = screen.getByRole("button", { name: "音声認識停止" });
     act(() => {
-      fireEvent.click(stopButton);
+      useVoiceRecognitionStore.getState().setError("音声認識エラー");
     });
+
+    expect(screen.getByText("音声認識エラー")).toBeDefined();
+  });
+
+  it("リスニング状態に応じたステータスラベルを表示する", () => {
+    render(<QueryOptimizer />);
+
+    expect(screen.getByText("待機中")).toBeDefined();
+
+    act(() => {
+      useVoiceRecognitionStore.getState().startListening();
+    });
+
+    expect(screen.getByText("音声認識中...")).toBeDefined();
   });
 });

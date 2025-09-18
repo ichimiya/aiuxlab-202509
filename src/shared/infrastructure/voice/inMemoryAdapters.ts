@@ -11,29 +11,56 @@ import type {
 } from "@/shared/useCases/ports/voice";
 
 export class InMemoryVoiceEventQueue implements VoiceEventQueuePort {
-  private queue: VoiceEventJob[] = [];
-  private processing = false;
+  private readonly sessionQueues = new Map<
+    string,
+    Array<{
+      job: VoiceEventJob;
+      resolve: () => void;
+      reject: (error: unknown) => void;
+    }>
+  >();
+  private readonly processingSessions = new Set<string>();
 
   constructor(
     private readonly worker: (job: VoiceEventJob) => Promise<void> | void,
   ) {}
 
-  async enqueue(job: VoiceEventJob): Promise<void> {
-    this.queue.push(job);
-    await this.flush();
+  enqueue(job: VoiceEventJob): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const queued = this.sessionQueues.get(job.sessionId);
+      if (queued) {
+        queued.push({ job, resolve, reject });
+      } else {
+        this.sessionQueues.set(job.sessionId, [{ job, resolve, reject }]);
+      }
+
+      void this.processSession(job.sessionId);
+    });
   }
 
-  private async flush(): Promise<void> {
-    if (this.processing) return;
-    this.processing = true;
+  private async processSession(sessionId: string): Promise<void> {
+    if (this.processingSessions.has(sessionId)) return;
+    const queue = this.sessionQueues.get(sessionId);
+    if (!queue || queue.length === 0) return;
 
+    this.processingSessions.add(sessionId);
     try {
-      while (this.queue.length > 0) {
-        const next = this.queue.shift()!;
-        await this.worker(next);
+      while (queue.length > 0) {
+        const task = queue[0];
+        try {
+          await this.worker(task.job);
+          task.resolve();
+        } catch (error) {
+          task.reject(error);
+        } finally {
+          queue.shift();
+        }
       }
     } finally {
-      this.processing = false;
+      this.processingSessions.delete(sessionId);
+      if (queue.length === 0) {
+        this.sessionQueues.delete(sessionId);
+      }
     }
   }
 }

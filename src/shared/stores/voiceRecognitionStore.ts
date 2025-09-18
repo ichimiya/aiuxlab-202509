@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import type { OptimizationCandidate } from "@/shared/api/generated/models";
 
 export type VoiceSessionStatus =
   | "idle"
@@ -7,10 +8,7 @@ export type VoiceSessionStatus =
   | "ready"
   | "researching";
 
-export interface VoiceCandidateSnapshot {
-  id: string;
-  query: string;
-  coverageScore: number;
+export interface VoiceCandidateSnapshot extends OptimizationCandidate {
   rank: number;
   source: "llm" | "manual";
 }
@@ -20,6 +18,9 @@ export interface VoiceSessionState {
   status: VoiceSessionStatus;
   candidates: VoiceCandidateSnapshot[];
   selectedCandidateId?: string;
+  currentQuery?: string;
+  latestTranscript?: string;
+  evaluationSummary?: string;
   lastUpdatedAt: string;
 }
 

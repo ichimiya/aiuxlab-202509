@@ -3,6 +3,7 @@ import {
   useMemo,
   useEffect,
   useState,
+  useRef,
   startTransition,
 } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
@@ -10,6 +11,26 @@ import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore"
 import { createProcessVoiceCommandUseCase } from "@/shared/useCases/ProcessVoiceCommandUseCase/factory";
 import type { VoiceButtonState } from "../../types";
 import { voicePerf } from "@/shared/lib/voicePerf";
+
+const DEFAULT_DEVICE = "web";
+const FALLBACK_LOCALE = "ja-JP";
+
+function getPreferredLocale(): string {
+  if (typeof navigator !== "undefined" && navigator.language) {
+    return navigator.language;
+  }
+  return FALLBACK_LOCALE;
+}
+
+function generateSessionId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
 
 export function useVoiceRecognitionButtonViewModel() {
   const {
@@ -27,35 +48,112 @@ export function useVoiceRecognitionButtonViewModel() {
   const markNotListening = useVoiceRecognitionStore(
     (state) => state.stopListening,
   );
+  const setVoiceSessionId = useVoiceRecognitionStore(
+    (state) => state.setSessionId,
+  );
 
-  // ハイドレーション対応の状態管理
-  const [isMounted, setIsMounted] = useState(false);
+  const sessionIdRef = useRef<string | null>(
+    useVoiceRecognitionStore.getState().sessionId,
+  );
+  const chunkSeqRef = useRef(0);
 
-  // UseCase インスタンス作成
-  const voiceUseCase = useMemo(() => {
-    return createProcessVoiceCommandUseCase();
+  useEffect(() => {
+    const unsubscribe = useVoiceRecognitionStore.subscribe((state, prev) => {
+      if (state.sessionId !== prev.sessionId) {
+        sessionIdRef.current = state.sessionId;
+        chunkSeqRef.current = 0;
+      }
+    });
+    return unsubscribe;
   }, []);
 
-  // 自動停止を環境変数で制御（既定: false）
+  const [isMounted, setIsMounted] = useState(false);
+
+  const voiceUseCase = useMemo(() => createProcessVoiceCommandUseCase(), []);
+
   const autoStop =
     (process.env.NEXT_PUBLIC_VOICE_AUTO_STOP || "").toLowerCase() === "1" ||
     (process.env.NEXT_PUBLIC_VOICE_AUTO_STOP || "").toLowerCase() === "true";
 
-  // マウント後に状態を更新
   useEffect(() => {
     setIsMounted(true);
   }, []);
 
-  // サポート状況とエラー状態（ハイドレーション対応）
   const isSupported = useMemo(() => {
-    // 初回レンダリング時はfalseで統一、マウント後にチェック
     if (!isMounted) return false;
     return voiceUseCase.checkSupport();
   }, [voiceUseCase, isMounted]);
 
-  const hasPermission = true; // 実際の実装では権限チェック
+  const hasPermission = true; // TODO: マイク権限チェックを実装
 
-  // ブラウザアイドル時/次ティックに処理を後回し
+  const ensureSessionId = useCallback(() => {
+    let current = sessionIdRef.current;
+    if (!current) {
+      current = generateSessionId();
+      sessionIdRef.current = current;
+      setVoiceSessionId(current);
+    }
+    return current;
+  }, [setVoiceSessionId]);
+
+  const waitForSseConnection = useCallback(async () => {
+    if (useVoiceRecognitionStore.getState().isSseConnected) return;
+
+    await new Promise<void>((resolve) => {
+      let unsubscribe: (() => void) | null = null;
+      const timeout = setTimeout(() => {
+        unsubscribe?.();
+        resolve();
+      }, 1000);
+
+      unsubscribe = useVoiceRecognitionStore.subscribe((state) => {
+        if (state.isSseConnected) {
+          clearTimeout(timeout);
+          unsubscribe?.();
+          resolve();
+        }
+      });
+    });
+  }, []);
+
+  const sendVoiceEvent = useCallback(
+    async ({
+      transcript,
+      confidence,
+      pattern,
+    }: {
+      transcript: string;
+      confidence: number;
+      pattern?: string | null;
+    }) => {
+      const sessionId = ensureSessionId();
+      const payload = {
+        sessionId,
+        transcript,
+        confidence,
+        isFinal: true,
+        pattern: pattern ?? undefined,
+        locale: getPreferredLocale(),
+        device: DEFAULT_DEVICE,
+        chunkSeq: ++chunkSeqRef.current,
+        timestamp: new Date().toISOString(),
+      };
+
+      try {
+        await waitForSseConnection();
+
+        await fetch("/api/voice-events", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } catch (error) {
+        console.error("Failed to enqueue voice event:", error);
+      }
+    },
+    [ensureSessionId, waitForSseConnection],
+  );
+
   const defer = useCallback((fn: () => void) => {
     type MaybeRIC = typeof globalThis & {
       requestIdleCallback?: (
@@ -71,25 +169,22 @@ export function useVoiceRecognitionButtonViewModel() {
     }
   }, []);
 
-  // ボタン状態の計算
   const buttonState: VoiceButtonState = useMemo(() => {
-    const isDisabled = !isSupported || !hasPermission;
-
+    const disabled = !isSupported || !hasPermission;
     return {
       text: isListening ? "停止" : "音声認識開始",
       className: `px-4 py-2 rounded-md font-medium transition-colors ${
-        isDisabled
+        disabled
           ? "bg-gray-400 text-gray-600 cursor-not-allowed"
           : isListening
             ? "bg-red-600 hover:bg-red-700 text-white"
             : "bg-green-600 hover:bg-green-700 text-white"
       }`,
-      isDisabled,
+      isDisabled: disabled,
       showIcon: !isListening,
     };
   }, [isListening, isSupported, hasPermission]);
 
-  // 音声認識の開始/停止処理
   const handleToggleListening = useCallback(async () => {
     voicePerf.mark("ui.toggle.start");
     if (isListening) {
@@ -111,100 +206,106 @@ export function useVoiceRecognitionButtonViewModel() {
         console.log("🎙️ 音声認識開始...");
         markListening();
         setResearchListening(true);
+        chunkSeqRef.current = 0;
+        ensureSessionId();
 
-        // AWS Transcribe イベントハンドラーを設定
-        const transcribeClient = voiceUseCase["transcribeClient"]; // プライベートプロパティにアクセス（テスト用）
-        if (
-          transcribeClient &&
-          typeof transcribeClient.setEventHandlers === "function"
-        ) {
-          transcribeClient.setEventHandlers({
-            onTranscriptionResult: (text: string, isFinal: boolean) => {
-              voicePerf.mark(isFinal ? "ui.result.final" : "ui.result.partial");
-              console.log("🎯 音声認識結果:", text, "Final:", isFinal);
+        voiceUseCase.setRealTimeEventHandlers({
+          onTranscriptionResult: (text: string, isFinal: boolean) => {
+            voicePerf.mark(isFinal ? "ui.result.final" : "ui.result.partial");
+            console.log("🎯 音声認識結果:", text, "Final:", isFinal);
 
-              if (isFinal) {
-                // 最終結果は即時にUIへ反映（同期コスト最小化）
-                startTransition(() => {
-                  setVoiceCommand(text);
-                  setVoiceTranscript(text);
-                  clearPartialTranscript();
+            if (isFinal) {
+              startTransition(() => {
+                setVoiceCommand(text);
+                setVoiceTranscript(text);
+                clearPartialTranscript();
+              });
+              voicePerf.mark("ui.state.updated");
+
+              const dispatchEvent = (
+                pattern?: string | null,
+                confidence = 0,
+              ) => {
+                void sendVoiceEvent({
+                  transcript: text,
+                  confidence,
+                  pattern: pattern ?? null,
                 });
-                voicePerf.mark("ui.state.updated");
+              };
 
-                // ドメイン解析はアイドル/次ティックへ後回し（メインスレッドを詰まらせない）
-                defer(() => {
-                  const domainService = voiceUseCase["voiceDomainService"];
-                  if (!domainService) return;
-                  const parsedResult = domainService.parseVoiceCommand(text);
-                  if (parsedResult.pattern && parsedResult.confidence > 0.5) {
-                    console.log(
-                      "✅ 音声コマンド認識成功:",
-                      text,
-                      "パターン:",
-                      parsedResult.pattern,
-                    );
-                    if (autoStop) {
-                      voicePerf.mark("ui.autostop.trigger");
-                      markNotListening();
-                      setResearchListening(false);
-                      if (voiceUseCase.isProcessing) {
-                        voiceUseCase
-                          .stopProcessing()
-                          .catch((err) =>
-                            console.error(
-                              "Failed to stop after recognition:",
-                              err,
-                            ),
-                          );
-                      }
+              defer(() => {
+                try {
+                  const parsedResult = voiceUseCase.analyzeTranscript(text);
+                  dispatchEvent(
+                    parsedResult.pattern,
+                    parsedResult.confidence ?? 0,
+                  );
+
+                  if (
+                    parsedResult.pattern &&
+                    parsedResult.confidence > 0.5 &&
+                    autoStop
+                  ) {
+                    voicePerf.mark("ui.autostop.trigger");
+                    markNotListening();
+                    setResearchListening(false);
+                    if (voiceUseCase.isProcessing) {
+                      voiceUseCase
+                        .stopProcessing()
+                        .catch((err) =>
+                          console.error(
+                            "Failed to stop after recognition:",
+                            err,
+                          ),
+                        );
                     }
                   }
-                });
-              } else {
-                console.log("📝 途中結果:", text);
-                setPartialTranscript(text);
-              }
-            },
-            onError: (error) => {
-              voicePerf.mark("ui.error");
-              console.error("AWS Transcribe Error:", error);
-              const isSilenceTimeout =
-                error.error === "network" &&
-                typeof error.message === "string" &&
-                error.message.toLowerCase().includes("no audio activity");
-
-              if (isSilenceTimeout && isListening) {
-                // 自動再接続（UIは継続状態のまま）
-                voiceUseCase
-                  .stopProcessing()
-                  .catch(() => void 0)
-                  .then(() => voiceUseCase.startRealTimeTranscription())
-                  .catch((err) => {
-                    console.error("Auto-reconnect failed:", err);
-                    markNotListening();
-                  });
-              } else {
-                markNotListening();
-                setResearchListening(false);
-                // ユーザーに分かりやすいエラーメッセージを表示
-                if (error.error === "transcription-failed") {
-                  console.warn("🚨 音声認識エラー:", error.message);
-                } else if (error.error === "not-allowed") {
-                  console.warn("🚨 マイク権限エラー:", error.message);
-                } else {
-                  console.warn("🚨 音声認識サービスエラー:", error.message);
+                } catch (error) {
+                  console.warn("Voice command parsing failed", error);
+                  dispatchEvent(null, 0);
                 }
-              }
-            },
-            onConnectionStatusChange: (status) => {
-              voicePerf.mark(`ui.connection.${status}`);
-              console.log("🔗 接続状態変更:", status);
-            },
-          });
-        }
+              });
+            } else {
+              console.log("📝 途中結果:", text);
+              setPartialTranscript(text);
+            }
+          },
+          onError: (error) => {
+            voicePerf.mark("ui.error");
+            console.error("AWS Transcribe Error:", error);
+            const isSilenceTimeout =
+              error.error === "network" &&
+              typeof error.message === "string" &&
+              error.message.toLowerCase().includes("no audio activity");
 
-        // 音声認識を開始（UIをブロックしない）
+            if (isSilenceTimeout && isListening) {
+              voiceUseCase
+                .stopProcessing()
+                .catch(() => void 0)
+                .then(() => voiceUseCase.startRealTimeTranscription())
+                .catch((err) => {
+                  console.error("Auto-reconnect failed:", err);
+                  markNotListening();
+                  setResearchListening(false);
+                });
+            } else {
+              markNotListening();
+              setResearchListening(false);
+              if (error.error === "transcription-failed") {
+                console.warn("🚨 音声認識エラー:", error.message);
+              } else if (error.error === "not-allowed") {
+                console.warn("🚨 マイク権限エラー:", error.message);
+              } else {
+                console.warn("🚨 音声認識サービスエラー:", error.message);
+              }
+            }
+          },
+          onConnectionStatusChange: (status) => {
+            voicePerf.mark(`ui.connection.${status}`);
+            console.log("🔗 接続状態変更:", status);
+          },
+        });
+
         voicePerf.mark("ui.stt.start.call");
         voiceUseCase.startRealTimeTranscription().catch((err) => {
           console.error("Failed to start voice recognition:", err);
@@ -232,9 +333,10 @@ export function useVoiceRecognitionButtonViewModel() {
     clearPartialTranscript,
     defer,
     setPartialTranscript,
+    ensureSessionId,
+    sendVoiceEvent,
   ]);
 
-  // 権限要求
   const requestPermission = useCallback(async () => {
     try {
       return await voiceUseCase.requestPermission();
