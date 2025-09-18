@@ -1,12 +1,8 @@
 import { NextRequest } from "next/server";
-import {
-  createExecuteResearchUseCase,
-  ApplicationError,
-} from "@/shared/useCases";
 import { CreateResearchRequest } from "@/shared/api/generated/models";
-import type { VoicePattern } from "@/shared/api/generated/models";
 import { executeResearchBody } from "@/shared/api/generated/zod";
 import { parseJsonBody, fail, ok } from "@/shared/api/http/http";
+import { buildCreateResearchUseCase } from "@/shared/useCases/research/factory";
 
 /**
  * リサーチ実行API
@@ -44,28 +40,16 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // リサーチユースケースの実行（コンテンツ処理も含む）
-    const executeResearchUseCase = createExecuteResearchUseCase(apiKey);
-    const result = await executeResearchUseCase.execute({
+    const useCase = buildCreateResearchUseCase({ apiKey });
+    const result = await useCase.execute({
       query: validation.data.query,
       selectedText: validation.data.selectedText,
-      voiceCommand: validation.data.voiceCommand as VoicePattern, // 型アサーション
+      voiceCommand: validation.data.voiceCommand,
     });
 
-    return ok(result, 200);
+    return ok(result, 202);
   } catch (error) {
     console.error("Research API error:", error);
-
-    // アプリケーション層のエラーであればステータス/コードを反映
-    if (error instanceof ApplicationError) {
-      return fail(
-        {
-          code: error.code || "INTERNAL_ERROR",
-          message: error.message || "リサーチの実行中にエラーが発生しました",
-        },
-        error.status || 500,
-      );
-    }
 
     return fail(
       {
