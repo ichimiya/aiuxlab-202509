@@ -10,6 +10,8 @@ describe("voiceRecognitionStore", () => {
     const { setSessionId, applySessionUpdate, setSessionState } =
       useVoiceRecognitionStore.getState();
 
+    expect(useVoiceRecognitionStore.getState().isListening).toBe(false);
+
     setSessionId("session-1");
 
     applySessionUpdate({
@@ -88,5 +90,16 @@ describe("voiceRecognitionStore", () => {
 
     resetReconnectAttempt();
     expect(useVoiceRecognitionStore.getState().reconnectAttempt).toBe(0);
+  });
+
+  it("リスニング状態を開始・停止できる", () => {
+    const { startListening, stopListening } =
+      useVoiceRecognitionStore.getState();
+
+    startListening();
+    expect(useVoiceRecognitionStore.getState().isListening).toBe(true);
+
+    stopListening();
+    expect(useVoiceRecognitionStore.getState().isListening).toBe(false);
   });
 });

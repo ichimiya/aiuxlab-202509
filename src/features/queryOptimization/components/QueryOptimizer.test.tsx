@@ -11,6 +11,16 @@ import {
 
 const optimizeMock = vi.fn();
 const processRealTimeAudioMock = vi.fn();
+
+let voiceCallback:
+  | ((result: {
+      originalText: string;
+      pattern: string | null;
+      confidence: number;
+      alternatives?: Array<{ transcript: string; confidence: number }>;
+      isPartial?: boolean;
+    }) => void)
+  | undefined;
 const stopProcessingMock = vi.fn();
 const useSseMock = vi.fn(() => ({ reconnectAttempt: 0 }));
 
@@ -40,10 +50,16 @@ describe("QueryOptimizer", () => {
   beforeEach(() => {
     optimizeMock.mockReset();
     processRealTimeAudioMock.mockReset();
+    voiceCallback = undefined;
     stopProcessingMock.mockReset();
     stopProcessingMock.mockResolvedValue(undefined);
     useVoiceRecognitionStore.getState().reset();
     useSseMock.mockClear();
+
+    processRealTimeAudioMock.mockImplementation((cb: (result: any) => void) => {
+      voiceCallback = cb;
+      return Promise.resolve();
+    });
   });
 
   const mockCandidates = [
@@ -87,28 +103,38 @@ describe("QueryOptimizer", () => {
     });
   };
 
+  const ensureStartButton = async () => {
+    const existingStart = screen.queryByRole("button", {
+      name: "音声認識開始",
+    });
+    if (existingStart) {
+      return existingStart;
+    }
+
+    const stopButton = await screen.findByRole("button", {
+      name: "音声認識停止",
+    });
+
+    await act(async () => {
+      fireEvent.click(stopButton);
+    });
+
+    return screen.findByRole("button", {
+      name: "音声認識開始",
+    });
+  };
+
   const runVoiceFlow = async (
     transcript: string,
     options: { pattern?: string | null } = {},
   ) => {
-    let voiceCallback:
-      | ((result: {
-          originalText: string;
-          pattern: string | null;
-          confidence: number;
-          alternatives?: Array<{ transcript: string; confidence: number }>;
-          isPartial?: boolean;
-        }) => void)
-      | undefined;
+    const startButton = await ensureStartButton();
 
-    processRealTimeAudioMock.mockImplementationOnce(async (cb) => {
-      voiceCallback = cb;
+    await act(async () => {
+      fireEvent.click(startButton);
     });
 
-    const voiceButton = screen.getByRole("button", { name: "音声で最適化" });
-    fireEvent.click(voiceButton);
-
-    expect(processRealTimeAudioMock).toHaveBeenCalled();
+    await waitFor(() => expect(processRealTimeAudioMock).toHaveBeenCalled());
     expect(screen.getByText("音声認識中...")).toBeTruthy();
 
     act(() => {
@@ -149,10 +175,15 @@ describe("QueryOptimizer", () => {
     expect(storeState.sessionState?.sessionId).toBe("session-123");
 
     await waitFor(() => {
-      expect(screen.getByText("最適化完了")).toBeTruthy();
+      expect(optimizeMock).toHaveBeenCalled();
       expect(screen.getByText("AI 安全対策 重大事例")).toBeTruthy();
     });
     expect(screen.getAllByText("92%").length).toBeGreaterThan(0);
+
+    const stopButton = screen.getByRole("button", { name: "音声認識停止" });
+    act(() => {
+      fireEvent.click(stopButton);
+    });
   });
 
   it("2回連続で音声最適化を実行できる", async () => {
@@ -195,6 +226,11 @@ describe("QueryOptimizer", () => {
       voiceCommand: "perspective",
       voiceTranscript: transcript2,
       sessionId: "session-123",
+    });
+
+    const stopButton = screen.getByRole("button", { name: "音声認識停止" });
+    act(() => {
+      fireEvent.click(stopButton);
     });
   });
 });

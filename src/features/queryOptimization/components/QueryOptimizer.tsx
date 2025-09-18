@@ -18,7 +18,7 @@ import { createProcessVoiceCommandUseCase } from "@/shared/useCases/ProcessVoice
 import type { VoiceCommandResult } from "@/shared/useCases/ProcessVoiceCommandUseCase";
 import { VoiceOptimizationStatus } from "../types";
 import { VoiceSessionHUD } from "@/features/voiceRecognition/components/VoiceSessionHUD";
-import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
+import { useVoiceRecognitionControls } from "./useVoiceRecognitionControls";
 import { useVoiceSSE } from "@/features/voiceRecognition/hooks/useVoiceSSE";
 
 const STATUS_LABEL: Record<VoiceOptimizationStatus, string> = {
@@ -39,26 +39,24 @@ export function QueryOptimizer() {
   );
   const [error, setError] = useState<string | null>(null);
   const [sessionId, setSessionId] = useState<string | null>(null);
-
   const hasOptimizedRef = useRef(false);
+  const listeningLoopActiveRef = useRef(false);
+  const processingActiveRef = useRef(false);
+  const sessionIdRef = useRef<string | null>(null);
 
   const voiceUseCase = useMemo(() => createProcessVoiceCommandUseCase(), []);
   const { optimize } = useQueryOptimization();
-  const setVoiceSessionId = useVoiceRecognitionStore(
-    (state) => state.setSessionId,
-  );
-  const setVoiceSessionState = useVoiceRecognitionStore(
-    (state) => state.setSessionState,
-  );
-  const storeSetError = useVoiceRecognitionStore((state) => state.setError);
-  const storeClearError = useVoiceRecognitionStore((state) => state.clearError);
+  const {
+    setSessionId: setVoiceSessionId,
+    setSessionState: setVoiceSessionState,
+    setError: storeSetError,
+    clearError: storeClearError,
+    isListening,
+    startListening: markListening,
+    stopListening: markNotListening,
+  } = useVoiceRecognitionControls();
 
   useVoiceSSE({ sessionId, isPrimaryTab: true });
-
-  const isBusy =
-    status === VoiceOptimizationStatus.Listening ||
-    status === VoiceOptimizationStatus.Transcribing ||
-    status === VoiceOptimizationStatus.Optimizing;
 
   useEffect(() => {
     if (result?.candidates?.length) {
@@ -76,6 +74,10 @@ export function QueryOptimizer() {
       ) ?? result.candidates[0]
     );
   }, [result, selectedCandidateId]);
+
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
 
   const runOptimization = useCallback(
     async (payload: QueryOptimizationRequest) => {
@@ -118,94 +120,131 @@ export function QueryOptimizer() {
     ],
   );
 
-  const handleVoiceOptimization = useCallback(async () => {
-    if (isBusy) return;
-
-    if (voiceUseCase.isProcessing) {
-      try {
-        await voiceUseCase.stopProcessing();
-        await new Promise((resolve) => setTimeout(resolve, 200));
-      } catch (stopErr) {
-        console.warn("前回の音声認識を停止できませんでした", stopErr);
-      }
+  const startListeningLoop = useCallback(() => {
+    if (!listeningLoopActiveRef.current || processingActiveRef.current) {
+      return;
     }
 
+    setStatus(VoiceOptimizationStatus.Listening);
     setError(null);
     storeClearError();
-    setResult(null);
-    setSelectedCandidateId(null);
-    setLatestTranscript("");
+
+    processingActiveRef.current = true;
+
+    voiceUseCase.processRealTimeAudio((voiceResult: VoiceCommandResult) => {
+      const recognizedText = (voiceResult.originalText ?? "").trim();
+      setLatestTranscript(recognizedText);
+
+      if (voiceResult.isPartial) {
+        setStatus(VoiceOptimizationStatus.Transcribing);
+        return;
+      }
+
+      if (!recognizedText) {
+        const message = "音声を認識できませんでした";
+        setError(message);
+        storeSetError(message);
+        setStatus(VoiceOptimizationStatus.Error);
+        listeningLoopActiveRef.current = false;
+        processingActiveRef.current = false;
+        void voiceUseCase.stopProcessing().catch(() => undefined);
+        return;
+      }
+
+      if (hasOptimizedRef.current) {
+        return;
+      }
+      hasOptimizedRef.current = true;
+
+      setStatus(VoiceOptimizationStatus.Optimizing);
+
+      const payload: QueryOptimizationRequest = {
+        originalQuery: recognizedText,
+        voiceTranscript: recognizedText,
+      };
+      if (voiceResult.pattern) {
+        payload.voiceCommand = voiceResult.pattern as VoicePattern;
+      }
+      const currentSessionId = sessionIdRef.current;
+      if (currentSessionId) {
+        payload.sessionId = currentSessionId;
+      }
+
+      void (async () => {
+        try {
+          await Promise.resolve(voiceUseCase.stopProcessing()).catch(
+            () => undefined,
+          );
+        } catch (stopError) {
+          console.warn("音声認識の停止に失敗しました", stopError);
+        }
+
+        processingActiveRef.current = false;
+        await runOptimization(payload);
+        hasOptimizedRef.current = false;
+
+        if (listeningLoopActiveRef.current) {
+          setStatus(VoiceOptimizationStatus.Listening);
+          startListeningLoop();
+        }
+      })();
+    });
+  }, [runOptimization, storeClearError, storeSetError, voiceUseCase]);
+
+  const stopListeningLoop = useCallback(async () => {
+    if (!listeningLoopActiveRef.current && !processingActiveRef.current) {
+      setStatus(VoiceOptimizationStatus.Idle);
+      return;
+    }
+    listeningLoopActiveRef.current = false;
+    processingActiveRef.current = false;
     hasOptimizedRef.current = false;
-    setStatus(VoiceOptimizationStatus.Listening);
-    setVoiceSessionId(null);
-    setVoiceSessionState(null);
-
     try {
-      await voiceUseCase.processRealTimeAudio(
-        (voiceResult: VoiceCommandResult) => {
-          const recognizedText = (voiceResult.originalText ?? "").trim();
-          setLatestTranscript(recognizedText);
+      await voiceUseCase.stopProcessing();
+    } catch (error) {
+      console.warn("音声認識の停止に失敗しました", error);
+    }
+    setStatus(VoiceOptimizationStatus.Idle);
+  }, [voiceUseCase]);
 
-          if (voiceResult.isPartial) {
-            setStatus(VoiceOptimizationStatus.Transcribing);
-            return;
-          }
+  const handleVoiceOptimization = useCallback(() => {
+    if (isListening) {
+      markNotListening();
+    } else {
+      markListening();
+    }
+  }, [isListening, markListening, markNotListening]);
 
-          if (!recognizedText) {
-            const message = "音声を認識できませんでした";
-            setError(message);
-            storeSetError(message);
-            setStatus(VoiceOptimizationStatus.Error);
-            void voiceUseCase.stopProcessing().catch(() => undefined);
-            return;
-          }
-
-          if (hasOptimizedRef.current) {
-            return;
-          }
-          hasOptimizedRef.current = true;
-
-          setStatus(VoiceOptimizationStatus.Optimizing);
-
-          const payload: QueryOptimizationRequest = {
-            originalQuery: recognizedText,
-            voiceTranscript: recognizedText,
-          };
-          if (voiceResult.pattern) {
-            payload.voiceCommand = voiceResult.pattern as VoicePattern;
-          }
-          if (sessionId) {
-            payload.sessionId = sessionId;
-          }
-
-          void (async () => {
-            try {
-              await Promise.resolve(voiceUseCase.stopProcessing()).catch(
-                () => undefined,
-              );
-            } catch (stopError) {
-              console.warn("音声認識の停止に失敗しました", stopError);
-            }
-            await runOptimization(payload);
-          })();
-        },
-      );
-    } catch (err) {
-      const message =
-        err instanceof Error ? err.message : "音声認識を開始できませんでした";
-      setError(message);
-      setStatus(VoiceOptimizationStatus.Error);
-      storeSetError(message);
+  useEffect(() => {
+    if (isListening) {
+      if (!listeningLoopActiveRef.current) {
+        listeningLoopActiveRef.current = true;
+        processingActiveRef.current = false;
+        setError(null);
+        storeClearError();
+        setResult(null);
+        setSelectedCandidateId(null);
+        setLatestTranscript("");
+        hasOptimizedRef.current = false;
+        setStatus(VoiceOptimizationStatus.Listening);
+        setVoiceSessionId(null);
+        setVoiceSessionState(null);
+        startListeningLoop();
+      }
+    } else {
+      if (listeningLoopActiveRef.current || processingActiveRef.current) {
+        void stopListeningLoop();
+      }
     }
   }, [
-    isBusy,
-    runOptimization,
-    voiceUseCase,
+    isListening,
+    startListeningLoop,
+    stopListeningLoop,
+    storeClearError,
+    setResult,
+    setSelectedCandidateId,
     setVoiceSessionId,
     setVoiceSessionState,
-    storeClearError,
-    storeSetError,
-    sessionId,
   ]);
 
   return (
@@ -214,14 +253,13 @@ export function QueryOptimizer() {
         <button
           type="button"
           onClick={handleVoiceOptimization}
-          disabled={isBusy}
           className={`px-4 py-2 rounded-md font-medium transition-colors ${
-            isBusy
-              ? "bg-gray-400 text-gray-600 cursor-not-allowed"
+            isListening
+              ? "bg-red-600 hover:bg-red-700 text-white"
               : "bg-green-600 hover:bg-green-700 text-white"
           }`}
         >
-          音声で最適化
+          {isListening ? "音声認識停止" : "音声認識開始"}
         </button>
         <span className="text-sm text-gray-700" aria-live="polite">
           {STATUS_LABEL[status]}

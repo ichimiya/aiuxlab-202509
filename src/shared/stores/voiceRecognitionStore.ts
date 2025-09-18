@@ -37,6 +37,7 @@ export interface VoiceRecognitionViewState {
   lastError: string | null;
   reconnectAttempt: number;
   isSseConnected: boolean;
+  isListening: boolean;
 }
 
 export interface VoiceRecognitionActions {
@@ -50,6 +51,8 @@ export interface VoiceRecognitionActions {
   setSseConnected: (connected: boolean) => void;
   incrementReconnectAttempt: () => void;
   resetReconnectAttempt: () => void;
+  startListening: () => void;
+  stopListening: () => void;
   reset: () => void;
 }
 
@@ -63,6 +66,7 @@ const initialState: VoiceRecognitionViewState = {
   lastError: null,
   reconnectAttempt: 0,
   isSseConnected: false,
+  isListening: false,
 };
 
 export const useVoiceRecognitionStore = create<VoiceRecognitionStore>()(
@@ -191,6 +195,26 @@ export const useVoiceRecognitionStore = create<VoiceRecognitionStore>()(
           }),
           false,
           "resetReconnectAttempt",
+        ),
+
+      startListening: () =>
+        set(
+          (state) => ({
+            ...state,
+            isListening: true,
+          }),
+          false,
+          "startListening",
+        ),
+
+      stopListening: () =>
+        set(
+          (state) => ({
+            ...state,
+            isListening: false,
+          }),
+          false,
+          "stopListening",
         ),
 
       reset: () => set(initialState, false, "reset"),
