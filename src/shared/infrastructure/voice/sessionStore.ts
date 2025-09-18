@@ -1,11 +1,15 @@
 import { InMemoryVoiceSessionStore } from "./inMemoryAdapters";
 import type { VoiceSessionStorePort } from "@/shared/useCases/ports/voice";
 
-let store: VoiceSessionStorePort | null = null;
+declare global {
+  var __voiceSessionStore: VoiceSessionStorePort | undefined;
+}
 
 export function getVoiceSessionStore(): VoiceSessionStorePort {
-  if (!store) {
-    store = new InMemoryVoiceSessionStore();
+  if (!globalThis.__voiceSessionStore) {
+    globalThis.__voiceSessionStore = new InMemoryVoiceSessionStore();
   }
-  return store;
+  return globalThis.__voiceSessionStore;
 }
+
+export {};

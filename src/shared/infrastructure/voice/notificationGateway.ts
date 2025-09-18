@@ -1,11 +1,16 @@
 import { InMemoryVoiceNotificationAdapter } from "./inMemoryAdapters";
 import type { VoiceNotificationPort } from "@/shared/useCases/ports/voice";
 
-let adapter: VoiceNotificationPort | null = null;
+declare global {
+  var __voiceNotificationAdapter: VoiceNotificationPort | undefined;
+}
 
 export function getVoiceNotificationAdapter(): VoiceNotificationPort {
-  if (!adapter) {
-    adapter = new InMemoryVoiceNotificationAdapter();
+  if (!globalThis.__voiceNotificationAdapter) {
+    globalThis.__voiceNotificationAdapter =
+      new InMemoryVoiceNotificationAdapter();
   }
-  return adapter;
+  return globalThis.__voiceNotificationAdapter;
 }
+
+export {};
