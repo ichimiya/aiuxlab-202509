@@ -181,6 +181,48 @@ describe("processVoiceEvent", () => {
     expect(executeResearchMock).not.toHaveBeenCalled();
   });
 
+  it("confirm帯で未サポートのインテントならエラーを通知する", async () => {
+    classifyMock.mockResolvedValueOnce({
+      intentId: "CANCEL_OPTIMIZATION",
+      confidence: 0.58,
+      parameters: {},
+    });
+
+    const processor = createVoiceEventProcessor({
+      optimizeUseCase: { execute: executeMock },
+      executeResearchUseCase: { execute: executeResearchMock },
+      sessionRepository: {
+        initializeSession: initializeSessionMock,
+        appendEntry: appendEntryMock,
+        getSessionHistory: getSessionHistoryMock,
+      },
+      notificationAdapter: {
+        publish: publishMock,
+      },
+      sessionStore: {
+        get: sessionStoreGetMock,
+        set: sessionStoreSetMock,
+      },
+      intentClassifier: {
+        classify: classifyMock,
+      },
+    });
+
+    await processor(baseJob);
+
+    expect(publishMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "error",
+        sessionId: "session-1",
+      }),
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(executeResearchMock).not.toHaveBeenCalled();
+    expect(sessionStoreSetMock).not.toHaveBeenCalledWith(
+      expect.objectContaining({ pendingIntent: expect.anything() }),
+    );
+  });
+
   it("インテントがrejectならエラーイベントを通知しユースケースを呼び出さない", async () => {
     classifyMock.mockResolvedValueOnce({
       intentId: "START_RESEARCH",
@@ -367,5 +409,44 @@ describe("processVoiceEvent", () => {
         sessionId: "session-1",
       }),
     );
+  });
+
+  it("未実装インテントがauto帯で返ってきたらエラーを通知する", async () => {
+    classifyMock.mockResolvedValueOnce({
+      intentId: "CANCEL_OPTIMIZATION",
+      confidence: 0.85,
+      parameters: {},
+    });
+
+    const processor = createVoiceEventProcessor({
+      optimizeUseCase: { execute: executeMock },
+      executeResearchUseCase: { execute: executeResearchMock },
+      sessionRepository: {
+        initializeSession: initializeSessionMock,
+        appendEntry: appendEntryMock,
+        getSessionHistory: getSessionHistoryMock,
+      },
+      notificationAdapter: {
+        publish: publishMock,
+      },
+      sessionStore: {
+        get: sessionStoreGetMock,
+        set: sessionStoreSetMock,
+      },
+      intentClassifier: {
+        classify: classifyMock,
+      },
+    });
+
+    await processor(baseJob);
+
+    expect(publishMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "error",
+        sessionId: "session-1",
+      }),
+    );
+    expect(executeMock).not.toHaveBeenCalled();
+    expect(executeResearchMock).not.toHaveBeenCalled();
   });
 });

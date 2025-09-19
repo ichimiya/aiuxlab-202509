@@ -6,6 +6,7 @@ import type {
   VoiceIntentResult,
 } from "@/shared/useCases/ports/voice";
 import { VoiceIntentClassificationOutputSchema } from "@/shared/ai/schemas/voiceIntent";
+import { VOICE_INTENT_IDS } from "@/shared/domain/voice/intents";
 
 function extractJsonBlock(raw: string): string {
   const trimmed = raw.trim();
@@ -33,6 +34,7 @@ export class BedrockVoiceIntentClassifierAdapter
 
       if (parsed.success) {
         const { intentId, confidence, parameters } = parsed.data;
+        ensureKnownIntent(intentId);
         return {
           intentId,
           confidence,
@@ -88,6 +90,8 @@ export function normalizeVoiceIntentClassification(
   }
 
   const normalizedIntentId = intentIdValue.trim().toUpperCase();
+  ensureKnownIntent(normalizedIntentId);
+
   const normalizedConfidence = clamp(confidenceValue, 0, 1);
   const parameters = isPlainRecord(raw.parameters) ? raw.parameters : {};
 
@@ -104,4 +108,12 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
+}
+
+function ensureKnownIntent(intentId: string): void {
+  if (
+    !VOICE_INTENT_IDS.includes(intentId as (typeof VOICE_INTENT_IDS)[number])
+  ) {
+    throw new Error(`Unsupported intentId: ${intentId}`);
+  }
 }

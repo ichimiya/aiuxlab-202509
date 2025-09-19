@@ -14,6 +14,7 @@ import type {
   VoiceIntentClassifierPort,
   VoiceIntentResult,
 } from "@/shared/useCases/ports/voice";
+import { VOICE_INTENT_IDS } from "@/shared/domain/voice/intents";
 import type { QueryOptimizationSessionEntry } from "@/shared/domain/queryOptimization/services";
 import type { VoicePattern } from "@/shared/api/generated/models";
 import { VoicePattern as VoicePatternEnum } from "@/shared/api/generated/models/voicePattern";
@@ -36,6 +37,10 @@ const INTENT_CONFIDENCE_THRESHOLDS: Record<
 };
 
 const DEFAULT_CONFIDENCE_THRESHOLDS = { auto: 0.7, confirm: 0.5 } as const;
+const SUPPORTED_AUTOMATIC_INTENTS = new Set([
+  "OPTIMIZE_QUERY_APPEND",
+  "OPTIMIZE_QUERY_REPLACE",
+]);
 
 type ConfidenceBand = "auto" | "confirm" | "reject";
 
@@ -403,6 +408,17 @@ export function createVoiceEventProcessor({
       : defaultClassification;
 
     const normalizedIntentId = classification.intentId.toUpperCase();
+    if (
+      !VOICE_INTENT_IDS.includes(
+        normalizedIntentId as (typeof VOICE_INTENT_IDS)[number],
+      )
+    ) {
+      await notifyError(
+        job.sessionId,
+        new Error(`Unknown intentId received: ${normalizedIntentId}`),
+      );
+      return;
+    }
     const confidenceBand = evaluateConfidenceBand(
       normalizedIntentId,
       classification.confidence,
@@ -423,16 +439,26 @@ export function createVoiceEventProcessor({
     }
 
     if (confidenceBand === "confirm") {
-      await registerPendingIntent({
-        job,
-        currentSession,
-        mergedQuery,
-        classification: {
-          intentId: normalizedIntentId,
-          confidence: classification.confidence,
-          parameters: classification.parameters ?? {},
-        },
-      });
+      if (normalizedIntentId === "START_RESEARCH") {
+        await registerPendingIntent({
+          job,
+          currentSession,
+          mergedQuery,
+          classification: {
+            intentId: normalizedIntentId,
+            confidence: classification.confidence,
+            parameters: classification.parameters ?? {},
+          },
+        });
+        return;
+      }
+
+      await notifyError(
+        job.sessionId,
+        new Error(
+          `Intent ${normalizedIntentId} is not implemented for confirm band`,
+        ),
+      );
       return;
     }
 
@@ -451,12 +477,22 @@ export function createVoiceEventProcessor({
       return;
     }
 
-    await runOptimizeFlow({
-      job,
-      history,
-      mergedQuery,
-      voiceCommand,
-    });
+    if (SUPPORTED_AUTOMATIC_INTENTS.has(normalizedIntentId)) {
+      await runOptimizeFlow({
+        job,
+        history,
+        mergedQuery,
+        voiceCommand,
+      });
+      return;
+    }
+
+    await notifyError(
+      job.sessionId,
+      new Error(
+        `Intent ${normalizedIntentId} is not implemented for auto band`,
+      ),
+    );
   };
 }
 

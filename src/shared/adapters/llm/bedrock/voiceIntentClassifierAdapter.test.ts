@@ -42,4 +42,13 @@ describe("normalizeVoiceIntentClassification", () => {
       }),
     ).toThrow(/confidence/i);
   });
+
+  it("未知のintentIdはエラーにする", () => {
+    expect(() =>
+      normalizeVoiceIntentClassification({
+        intentId: "UNKNOWN_INTENT",
+        confidence: 0.5,
+      }),
+    ).toThrow(/Unsupported intentId/i);
+  });
 });
