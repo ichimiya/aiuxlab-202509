@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["intentId", "confidence", "parameters"],
+  "properties": {
+    "intentId": {
+      "type": "string",
+      "enum": [
+        "OPTIMIZE_QUERY_APPEND",
+        "OPTIMIZE_QUERY_REPLACE",
+        "START_RESEARCH",
+        "CONFIRM_CANDIDATE_SELECTION",
+        "CANCEL_OPTIMIZATION"
+      ]
+    },
+    "confidence": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 1
+    },
+    "parameters": {
+      "type": "object",
+      "description": "インテント処理に必要なパラメータ",
+      "additionalProperties": true
+    },
+    "rationale": {
+      "type": "string",
+      "maxLength": 160,
+      "description": "判定理由（省略可、最大160文字）"
+    },
+    "confidenceBand": {
+      "type": "string",
+      "enum": ["auto", "confirm", "reject"]
+    }
+  },
+  "additionalProperties": false
+}

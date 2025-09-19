@@ -25,7 +25,10 @@ export class BedrockVoiceIntentClassifierAdapter
 {
   async classify(input: VoiceIntentInput): Promise<VoiceIntentResult> {
     const prompt = buildVoiceIntentClassifierPrompt(input);
-    const text = await this.invokePrompt(prompt);
+    const text = await this.invokePrompt({
+      system: prompt.system,
+      user: prompt.user,
+    });
     let raw: unknown;
     try {
       const jsonText = extractJsonBlock(text);
