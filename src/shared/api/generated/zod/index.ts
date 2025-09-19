@@ -20,64 +20,80 @@ export const executeResearchBody = zod.object({
     .describe("音声認識から得られた元のテキスト"),
 });
 
-export const executeResearchResponse = zod.object({
+/**
+ * @summary リサーチスナップショットを取得
+ */
+export const getResearchSnapshotParams = zod.object({
+  id: zod.string(),
+});
+
+export const getResearchSnapshotResponse = zod.object({
   id: zod.string().describe("リサーチID"),
   query: zod.string().describe("初期クエリ"),
+  selectedText: zod.string().nullish().describe("選択されたテキスト"),
+  voiceCommand: zod.string().nullish().describe("音声コマンド（構造化済み）"),
   status: zod.enum(["pending", "completed", "failed"]).describe("リサーチ状態"),
+  revision: zod.number().min(1).describe("スナップショットのリビジョン"),
   results: zod
     .array(
       zod.object({
-        id: zod.string().describe("結果ID"),
-        content: zod.string().describe("HTML化されたリサーチ結果内容"),
-        source: zod.string().describe("情報源"),
-        relevanceScore: zod.number().optional().describe("関連度スコア"),
-        voicePattern: zod
-          .enum([
-            "deepdive",
-            "perspective",
-            "concrete",
-            "data",
-            "compare",
-            "trend",
-            "practical",
-            "summary",
-          ])
-          .optional()
-          .describe("音声解釈パターン"),
+        id: zod.string(),
+        content: zod.string(),
+        source: zod.string(),
+        relevanceScore: zod.number(),
         processedCitations: zod
           .array(
             zod.object({
-              id: zod.string().describe("引用ID（ref1, ref2など）"),
-              number: zod.number().describe("引用番号（1, 2など）"),
-              url: zod.string().describe("引用URL"),
-              title: zod.string().nullish().describe("引用タイトル"),
-              domain: zod.string().nullish().describe("引用ドメイン"),
+              id: zod.string(),
+              number: zod.number(),
+              url: zod.url(),
+              title: zod.string().nullish(),
+              domain: zod.string().nullish(),
             }),
           )
-          .optional()
-          .describe("構造化された引用情報"),
+          .nullish(),
       }),
     )
-    .optional()
-    .describe("リサーチ結果"),
+    .optional(),
   searchResults: zod
     .array(
       zod.object({
-        title: zod.string().describe("ページタイトル"),
-        url: zod.string().describe("ページURL"),
-        snippet: zod.string().describe("ページ概要"),
-        date: zod.string().nullish().describe("記事作成日（オプショナル）"),
-        last_updated: zod
-          .string()
-          .nullish()
-          .describe("最終更新日（オプショナル）"),
+        id: zod.string(),
+        title: zod.string(),
+        url: zod.url(),
+        snippet: zod.string().nullish(),
+        relevanceScore: zod.number().nullish(),
+        lastUpdated: zod.iso.datetime({}).nullish(),
       }),
     )
-    .optional()
-    .describe("Perplexity検索結果"),
-  citations: zod.array(zod.string()).optional().describe("引用URL一覧"),
-  createdAt: zod.iso.datetime({}).describe("作成日時"),
-  updatedAt: zod.iso.datetime({}).optional().describe("更新日時"),
+    .optional(),
+  citations: zod.array(zod.string()).optional(),
+  createdAt: zod.iso.datetime({}),
+  updatedAt: zod.iso.datetime({}),
+  lastError: zod
+    .object({
+      message: zod.string().optional(),
+      code: zod.string().optional(),
+    })
+    .nullish(),
+});
+
+/**
+ * @summary リサーチイベントのSSEストリーム
+ */
+export const streamResearchEventsParams = zod.object({
+  id: zod.string(),
+});
+
+export const streamResearchEventsQueryParams = zod.object({
+  lastEventId: zod.string().optional(),
+});
+
+/**
+ * @summary 追いリサーチを実行
+ */
+export const reExecuteResearchParams = zod.object({
+  id: zod.string(),
 });
 
 /**

@@ -1,30 +1,57 @@
 "use client";
 
-import { useState } from "react";
+import React, { useState } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
-import { useExecuteResearch } from "@/shared/api/generated/api";
-import type { Research } from "@/shared/api/generated/models";
-import { ResearchResultDisplay } from "./ResearchResultDisplay";
 import { VoiceRecognitionButton } from "../../voiceRecognition/components/VoiceRecognitionButton";
 import { VoiceStatusIndicator } from "../../voiceRecognition/components/VoiceStatusIndicator";
 import { VoiceLevelMeter } from "../../voiceRecognition/components/VoiceLevelMeter";
 import { VoiceCommandHistory } from "../../voiceRecognition/components/VoiceCommandHistory";
+import { useRouter } from "next/navigation";
 
 export function ResearchInterface() {
   const [query, setQuery] = useState("");
-  const [researchResult, setResearchResult] = useState<Research | null>(null);
-  const { selectedText, voiceCommand, voiceTranscript } = useResearchStore();
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { selectedText, voiceCommand, voiceTranscript, setCurrentResearchId } =
+    useResearchStore();
+  const router = useRouter();
 
-  const executeResearchMutation = useExecuteResearch({
-    mutation: {
-      onSuccess: (response) => {
-        setResearchResult(response);
-      },
-      onError: (error) => {
-        console.error("Research failed:", error);
-      },
-    },
-  });
+  const handleSubmit = async () => {
+    if (!query) return;
+    setErrorMessage(null);
+    setIsSubmitting(true);
+    try {
+      const response = await fetch("/api/research", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          query,
+          selectedText,
+          voiceCommand,
+          voiceTranscript,
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+
+      const snapshot = (await response.json()) as {
+        id: string;
+      };
+      setCurrentResearchId(snapshot.id);
+      router.push(`/research/${snapshot.id}`);
+    } catch (error) {
+      console.error("Failed to start research", error);
+      setErrorMessage(
+        "リサーチの開始に失敗しました。時間をおいて再試行してください。",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   return (
     <div className="max-w-4xl mx-auto p-6">
@@ -84,31 +111,24 @@ export function ResearchInterface() {
           <VoiceCommandHistory />
         </div>
 
-        {/* Research Results */}
-        <ResearchResultDisplay
-          research={researchResult}
-          isLoading={executeResearchMutation.isPending}
-          error={executeResearchMutation.error}
-        />
-
         {/* Action Buttons */}
         <div className="flex space-x-4 justify-center">
           <button
             type="button"
-            onClick={() => {
-              executeResearchMutation.mutate({
-                data: { query, selectedText, voiceCommand, voiceTranscript },
-              });
-            }}
-            disabled={!query || executeResearchMutation.isPending}
+            onClick={handleSubmit}
+            disabled={!query || isSubmitting}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
           >
-            {executeResearchMutation.isPending
-              ? "リサーチ中..."
-              : "リサーチ開始"}
+            {isSubmitting ? "リサーチ中..." : "リサーチ開始"}
           </button>
           <VoiceRecognitionButton />
         </div>
+
+        {errorMessage && (
+          <p className="text-center text-sm text-red-600 dark:text-red-400">
+            {errorMessage}
+          </p>
+        )}
       </div>
     </div>
   );

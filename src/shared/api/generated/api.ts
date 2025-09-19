@@ -5,12 +5,20 @@
  * AI時代の新しいリサーチ体験を探索するPOC API
  * OpenAPI spec version: 0.1.0
  */
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import type {
+  DataTag,
+  DefinedInitialDataOptions,
+  DefinedUseQueryResult,
   MutationFunction,
   QueryClient,
+  QueryFunction,
+  QueryKey,
+  UndefinedInitialDataOptions,
   UseMutationOptions,
   UseMutationResult,
+  UseQueryOptions,
+  UseQueryResult,
 } from "@tanstack/react-query";
 
 import type {
@@ -18,7 +26,8 @@ import type {
   Error,
   OptimizationResponse,
   QueryOptimizationRequest,
-  Research,
+  ResearchSnapshot,
+  StreamResearchEventsParams,
 } from "./models";
 
 import { customInstance } from "../mutator";
@@ -30,7 +39,7 @@ export const executeResearch = (
   createResearchRequest: CreateResearchRequest,
   signal?: AbortSignal,
 ) => {
-  return customInstance<Research>({
+  return customInstance<ResearchSnapshot>({
     url: `/research`,
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -102,6 +111,419 @@ export const useExecuteResearch = <TError = Error | Error, TContext = unknown>(
   TContext
 > => {
   const mutationOptions = getExecuteResearchMutationOptions(options);
+
+  return useMutation(mutationOptions, queryClient);
+};
+
+/**
+ * @summary リサーチスナップショットを取得
+ */
+export const getResearchSnapshot = (id: string, signal?: AbortSignal) => {
+  return customInstance<ResearchSnapshot>({
+    url: `/research/${id}`,
+    method: "GET",
+    signal,
+  });
+};
+
+export const getGetResearchSnapshotQueryKey = (id?: string) => {
+  return [`/research/${id}`] as const;
+};
+
+export const getGetResearchSnapshotQueryOptions = <
+  TData = Awaited<ReturnType<typeof getResearchSnapshot>>,
+  TError = Error | Error,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getResearchSnapshot>>,
+        TError,
+        TData
+      >
+    >;
+  },
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetResearchSnapshotQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getResearchSnapshot>>
+  > = ({ signal }) => getResearchSnapshot(id, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getResearchSnapshot>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type GetResearchSnapshotQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getResearchSnapshot>>
+>;
+export type GetResearchSnapshotQueryError = Error | Error;
+
+export function useGetResearchSnapshot<
+  TData = Awaited<ReturnType<typeof getResearchSnapshot>>,
+  TError = Error | Error,
+>(
+  id: string,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getResearchSnapshot>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getResearchSnapshot>>,
+          TError,
+          Awaited<ReturnType<typeof getResearchSnapshot>>
+        >,
+        "initialData"
+      >;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetResearchSnapshot<
+  TData = Awaited<ReturnType<typeof getResearchSnapshot>>,
+  TError = Error | Error,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getResearchSnapshot>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof getResearchSnapshot>>,
+          TError,
+          Awaited<ReturnType<typeof getResearchSnapshot>>
+        >,
+        "initialData"
+      >;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useGetResearchSnapshot<
+  TData = Awaited<ReturnType<typeof getResearchSnapshot>>,
+  TError = Error | Error,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getResearchSnapshot>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary リサーチスナップショットを取得
+ */
+
+export function useGetResearchSnapshot<
+  TData = Awaited<ReturnType<typeof getResearchSnapshot>>,
+  TError = Error | Error,
+>(
+  id: string,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof getResearchSnapshot>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getGetResearchSnapshotQueryOptions(id, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary リサーチイベントのSSEストリーム
+ */
+export const streamResearchEvents = (
+  id: string,
+  params?: StreamResearchEventsParams,
+  signal?: AbortSignal,
+) => {
+  return customInstance<string>({
+    url: `/research/${id}/events`,
+    method: "GET",
+    params,
+    signal,
+  });
+};
+
+export const getStreamResearchEventsQueryKey = (
+  id?: string,
+  params?: StreamResearchEventsParams,
+) => {
+  return [`/research/${id}/events`, ...(params ? [params] : [])] as const;
+};
+
+export const getStreamResearchEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof streamResearchEvents>>,
+  TError = unknown,
+>(
+  id: string,
+  params?: StreamResearchEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof streamResearchEvents>>,
+        TError,
+        TData
+      >
+    >;
+  },
+) => {
+  const { query: queryOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getStreamResearchEventsQueryKey(id, params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof streamResearchEvents>>
+  > = ({ signal }) => streamResearchEvents(id, params, signal);
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof streamResearchEvents>>,
+    TError,
+    TData
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+};
+
+export type StreamResearchEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof streamResearchEvents>>
+>;
+export type StreamResearchEventsQueryError = unknown;
+
+export function useStreamResearchEvents<
+  TData = Awaited<ReturnType<typeof streamResearchEvents>>,
+  TError = unknown,
+>(
+  id: string,
+  params: undefined | StreamResearchEventsParams,
+  options: {
+    query: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof streamResearchEvents>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        DefinedInitialDataOptions<
+          Awaited<ReturnType<typeof streamResearchEvents>>,
+          TError,
+          Awaited<ReturnType<typeof streamResearchEvents>>
+        >,
+        "initialData"
+      >;
+  },
+  queryClient?: QueryClient,
+): DefinedUseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useStreamResearchEvents<
+  TData = Awaited<ReturnType<typeof streamResearchEvents>>,
+  TError = unknown,
+>(
+  id: string,
+  params?: StreamResearchEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof streamResearchEvents>>,
+        TError,
+        TData
+      >
+    > &
+      Pick<
+        UndefinedInitialDataOptions<
+          Awaited<ReturnType<typeof streamResearchEvents>>,
+          TError,
+          Awaited<ReturnType<typeof streamResearchEvents>>
+        >,
+        "initialData"
+      >;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+export function useStreamResearchEvents<
+  TData = Awaited<ReturnType<typeof streamResearchEvents>>,
+  TError = unknown,
+>(
+  id: string,
+  params?: StreamResearchEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof streamResearchEvents>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+};
+/**
+ * @summary リサーチイベントのSSEストリーム
+ */
+
+export function useStreamResearchEvents<
+  TData = Awaited<ReturnType<typeof streamResearchEvents>>,
+  TError = unknown,
+>(
+  id: string,
+  params?: StreamResearchEventsParams,
+  options?: {
+    query?: Partial<
+      UseQueryOptions<
+        Awaited<ReturnType<typeof streamResearchEvents>>,
+        TError,
+        TData
+      >
+    >;
+  },
+  queryClient?: QueryClient,
+): UseQueryResult<TData, TError> & {
+  queryKey: DataTag<QueryKey, TData, TError>;
+} {
+  const queryOptions = getStreamResearchEventsQueryOptions(id, params, options);
+
+  const query = useQuery(queryOptions, queryClient) as UseQueryResult<
+    TData,
+    TError
+  > & { queryKey: DataTag<QueryKey, TData, TError> };
+
+  query.queryKey = queryOptions.queryKey;
+
+  return query;
+}
+
+/**
+ * @summary 追いリサーチを実行
+ */
+export const reExecuteResearch = (id: string, signal?: AbortSignal) => {
+  return customInstance<ResearchSnapshot>({
+    url: `/research/${id}/re-execute`,
+    method: "POST",
+    signal,
+  });
+};
+
+export const getReExecuteResearchMutationOptions = <
+  TError = Error | Error,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof reExecuteResearch>>,
+    TError,
+    { id: string },
+    TContext
+  >;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof reExecuteResearch>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationKey = ["reExecuteResearch"];
+  const { mutation: mutationOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey } };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof reExecuteResearch>>,
+    { id: string }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return reExecuteResearch(id);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ReExecuteResearchMutationResult = NonNullable<
+  Awaited<ReturnType<typeof reExecuteResearch>>
+>;
+
+export type ReExecuteResearchMutationError = Error | Error;
+
+/**
+ * @summary 追いリサーチを実行
+ */
+export const useReExecuteResearch = <
+  TError = Error | Error,
+  TContext = unknown,
+>(
+  options?: {
+    mutation?: UseMutationOptions<
+      Awaited<ReturnType<typeof reExecuteResearch>>,
+      TError,
+      { id: string },
+      TContext
+    >;
+  },
+  queryClient?: QueryClient,
+): UseMutationResult<
+  Awaited<ReturnType<typeof reExecuteResearch>>,
+  TError,
+  { id: string },
+  TContext
+> => {
+  const mutationOptions = getReExecuteResearchMutationOptions(options);
 
   return useMutation(mutationOptions, queryClient);
 };
