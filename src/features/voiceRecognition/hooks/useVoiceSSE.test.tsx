@@ -4,6 +4,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { renderHook, act } from "@testing-library/react";
 import type { VoiceSessionState } from "@/shared/stores/voiceRecognitionStore";
 import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
+import { useResearchStore } from "@/shared/stores/researchStore";
 import { useVoiceSSE } from "./useVoiceSSE";
 
 type EventHandler = (event: MessageEvent<string>) => void;
@@ -69,6 +70,7 @@ describe("useVoiceSSE", () => {
     MockEventSource.instances = [];
     vi.stubGlobal("EventSource", MockEventSource);
     useVoiceRecognitionStore.getState().reset();
+    useResearchStore.getState().reset();
     vi.useFakeTimers();
   });
 
@@ -128,5 +130,38 @@ describe("useVoiceSSE", () => {
     });
 
     expect(MockEventSource.instances).toHaveLength(2);
+  });
+
+  it("intent_confirmationイベントでpendingIntentを研究ストアに反映する", () => {
+    (useResearchStore.getState() as any).recordVoiceCommandResult({
+      id: "voice-queued",
+      originalText: "AIのリスクをまとめて",
+      recognizedPattern: "summary",
+      confidence: 0.2,
+      timestamp: new Date("2025-09-17T02:14:00.000Z"),
+      displayText: "AIのリスクをまとめて",
+    });
+
+    renderHook(() =>
+      useVoiceSSE({ sessionId: "session-3", isPrimaryTab: true }),
+    );
+
+    const intentPayload = {
+      intentId: "START_RESEARCH",
+      confidence: 0.76,
+      parameters: { candidateId: "cand-7" },
+      expiresAt: "2025-09-17T02:15:00.000Z",
+    };
+
+    act(() => {
+      MockEventSource.instances[0]?.emit("intent_confirmation", intentPayload);
+    });
+
+    const researchState = useResearchStore.getState() as any;
+    expect(researchState.pendingIntent).toMatchObject({
+      intentId: "START_RESEARCH",
+      confidence: 0.76,
+    });
+    expect(researchState.voiceCommandHistory[0]?.confidence).toBeCloseTo(0.76);
   });
 });

@@ -106,4 +106,102 @@ describe("researchStore", () => {
     clearPartialTranscript();
     expect((useResearchStore.getState() as any).partialTranscript).toBe("");
   });
+
+  it("音声解析結果を記録し履歴を保持できる", () => {
+    const { recordVoiceCommandResult, getVoiceCommandHistory } =
+      useResearchStore.getState() as any;
+
+    expect(typeof recordVoiceCommandResult).toBe("function");
+    expect(typeof getVoiceCommandHistory).toBe("function");
+
+    const now = new Date("2025-09-17T10:00:00.000Z");
+
+    recordVoiceCommandResult({
+      id: "voice-1",
+      originalText: "AIの倫理的リスクについて調べて",
+      recognizedPattern: "deepdive",
+      confidence: 0.82,
+      timestamp: now,
+      displayText: "AIの倫理的リスクについて調べて",
+    });
+
+    const state = useResearchStore.getState() as any;
+    expect(state.recognizedPattern).toBe("deepdive");
+    expect(state.intentConfidence).toBeCloseTo(0.82);
+
+    const history = getVoiceCommandHistory();
+    expect(history).toHaveLength(1);
+    expect(history[0]?.id).toBe("voice-1");
+    expect(history[0]?.recognizedPattern).toBe("deepdive");
+  });
+
+  it("音声履歴は最大5件まで保持される", () => {
+    const { recordVoiceCommandResult, getVoiceCommandHistory } =
+      useResearchStore.getState() as any;
+
+    for (let i = 0; i < 7; i += 1) {
+      recordVoiceCommandResult({
+        id: `voice-${i}`,
+        originalText: `コマンド${i}`,
+        recognizedPattern: "summary",
+        confidence: 0.6 + i * 0.01,
+        timestamp: new Date(2025, 8, 17, 10, 0, i),
+        displayText: `コマンド${i}`,
+      });
+    }
+
+    const history = getVoiceCommandHistory();
+    expect(history).toHaveLength(5);
+    expect(history[0]?.id).toBe("voice-6");
+    expect(history[4]?.id).toBe("voice-2");
+  });
+
+  it("pendingIntentを設定およびクリアできる", () => {
+    const { setPendingIntent, clearPendingIntent } =
+      useResearchStore.getState() as any;
+
+    expect(useResearchStore.getState()).toMatchObject({
+      pendingIntent: null,
+    });
+
+    setPendingIntent({
+      intentId: "START_RESEARCH",
+      confidence: 0.71,
+      parameters: { candidateId: "cand-1" },
+      expiresAt: "2025-09-17T10:05:00.000Z",
+    });
+
+    expect((useResearchStore.getState() as any).pendingIntent).toMatchObject({
+      intentId: "START_RESEARCH",
+      confidence: 0.71,
+    });
+
+    clearPendingIntent();
+    expect((useResearchStore.getState() as any).pendingIntent).toBeNull();
+  });
+
+  it("pendingIntentの信頼度で最新履歴を更新する", () => {
+    const { recordVoiceCommandResult, setPendingIntent } =
+      useResearchStore.getState() as any;
+
+    recordVoiceCommandResult({
+      id: "voice-50",
+      originalText: "より詳しく教えて",
+      recognizedPattern: "deepdive",
+      confidence: 0.42,
+      timestamp: new Date("2025-09-17T11:00:00.000Z"),
+      displayText: "より詳しく教えて",
+    });
+
+    setPendingIntent({
+      intentId: "START_RESEARCH",
+      confidence: 0.74,
+      parameters: {},
+      expiresAt: "2025-09-17T11:00:30.000Z",
+    });
+
+    const state = useResearchStore.getState() as any;
+    expect(state.voiceCommandHistory[0]?.confidence).toBeCloseTo(0.74);
+    expect(state.intentConfidence).toBeCloseTo(0.74);
+  });
 });

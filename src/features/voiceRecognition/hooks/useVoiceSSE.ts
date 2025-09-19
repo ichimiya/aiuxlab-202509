@@ -4,6 +4,7 @@ import {
   type VoiceSessionState,
   type PendingIntent,
 } from "@/shared/stores/voiceRecognitionStore";
+import { useResearchStore } from "@/shared/stores/researchStore";
 
 interface UseVoiceSSEOptions {
   sessionId: string | null;
@@ -46,6 +47,12 @@ export function useVoiceSSE({ sessionId, isPrimaryTab }: UseVoiceSSEOptions) {
   );
   const resetReconnectAttempt = useVoiceRecognitionStore(
     (state) => state.resetReconnectAttempt,
+  );
+  const setResearchPendingIntent = useResearchStore(
+    (state) => state.setPendingIntent,
+  );
+  const clearResearchPendingIntent = useResearchStore(
+    (state) => state.clearPendingIntent,
   );
 
   const reconnectAttemptRef = useRef(0);
@@ -155,6 +162,11 @@ export function useVoiceSSE({ sessionId, isPrimaryTab }: UseVoiceSSEOptions) {
       if (payload) {
         applySessionUpdate(payload);
         clearError();
+        if (payload.pendingIntent) {
+          setResearchPendingIntent(payload.pendingIntent);
+        } else {
+          clearResearchPendingIntent();
+        }
       }
     };
 
@@ -162,6 +174,7 @@ export function useVoiceSSE({ sessionId, isPrimaryTab }: UseVoiceSSEOptions) {
       const payload = parseMessage<PendingIntent>(event);
       if (payload) {
         setPendingIntent(payload);
+        setResearchPendingIntent(payload);
       }
     };
 
