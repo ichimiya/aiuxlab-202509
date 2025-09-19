@@ -2,35 +2,32 @@ import { useMemo } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
 import type { VoiceCommandUI } from "../../types";
 
+function formatTimestamp(timestamp: Date | string): string {
+  const date = timestamp instanceof Date ? timestamp : new Date(timestamp);
+  return date.toLocaleTimeString("ja-JP", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  });
+}
+
 export function useVoiceCommandHistoryViewModel() {
-  const { voiceCommand } = useResearchStore();
+  const voiceCommandHistory = useResearchStore(
+    (state) => state.voiceCommandHistory,
+  );
   const maxCommands = 5;
 
-  // モック履歴データ（実際の実装では専用ストアから取得）
-  const mockCommands: VoiceCommandUI[] = useMemo(() => {
-    if (!voiceCommand) return [];
-
-    return [
-      {
-        id: "1",
-        timestamp: new Date(),
-        originalText: voiceCommand,
-        recognizedPattern: "deepdive",
-        confidence: 0.95,
-        formattedTime: new Date().toLocaleTimeString("ja-JP", {
-          hour: "2-digit",
-          minute: "2-digit",
-          second: "2-digit",
-        }),
-        displayText: voiceCommand,
-      },
-    ];
-  }, [voiceCommand]);
-
-  const displayCommands = useMemo(
-    () => mockCommands.slice(-maxCommands).reverse(), // 新しいものを上に表示
-    [mockCommands, maxCommands],
-  );
+  const displayCommands: VoiceCommandUI[] = useMemo(() => {
+    return voiceCommandHistory.slice(0, maxCommands).map((entry) => ({
+      id: entry.id,
+      timestamp: entry.timestamp,
+      originalText: entry.originalText,
+      recognizedPattern: entry.recognizedPattern,
+      confidence: entry.confidence,
+      formattedTime: formatTimestamp(entry.timestamp),
+      displayText: entry.displayText ?? entry.originalText,
+    }));
+  }, [voiceCommandHistory, maxCommands]);
 
   const getCommandClassName = (command: VoiceCommandUI) => {
     const baseClass = "p-3 rounded-lg border text-sm";

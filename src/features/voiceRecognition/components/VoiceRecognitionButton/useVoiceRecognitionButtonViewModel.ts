@@ -32,6 +32,16 @@ function generateSessionId(): string {
   return `session-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
 
+function generateHistoryId(): string {
+  if (
+    typeof crypto !== "undefined" &&
+    typeof crypto.randomUUID === "function"
+  ) {
+    return crypto.randomUUID();
+  }
+  return `voice-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+}
+
 export function useVoiceRecognitionButtonViewModel() {
   const {
     setIsListening: setResearchListening,
@@ -39,6 +49,7 @@ export function useVoiceRecognitionButtonViewModel() {
     setVoiceTranscript,
     setPartialTranscript,
     clearPartialTranscript,
+    recordVoiceCommandResult,
   } = useResearchStore();
 
   const isListening = useVoiceRecognitionStore((state) => state.isListening);
@@ -241,6 +252,15 @@ export function useVoiceRecognitionButtonViewModel() {
                     parsedResult.confidence ?? 0,
                   );
 
+                  recordVoiceCommandResult({
+                    id: generateHistoryId(),
+                    originalText: text,
+                    recognizedPattern: parsedResult.pattern ?? undefined,
+                    confidence: parsedResult.confidence ?? 0,
+                    timestamp: new Date(),
+                    displayText: text,
+                  });
+
                   if (
                     parsedResult.pattern &&
                     parsedResult.confidence > 0.5 &&
@@ -263,6 +283,14 @@ export function useVoiceRecognitionButtonViewModel() {
                 } catch (error) {
                   console.warn("Voice command parsing failed", error);
                   dispatchEvent(null, 0);
+                  recordVoiceCommandResult({
+                    id: generateHistoryId(),
+                    originalText: text,
+                    recognizedPattern: undefined,
+                    confidence: 0,
+                    timestamp: new Date(),
+                    displayText: text,
+                  });
                 }
               });
             } else {
@@ -335,6 +363,7 @@ export function useVoiceRecognitionButtonViewModel() {
     setPartialTranscript,
     ensureSessionId,
     sendVoiceEvent,
+    recordVoiceCommandResult,
   ]);
 
   const requestPermission = useCallback(async () => {

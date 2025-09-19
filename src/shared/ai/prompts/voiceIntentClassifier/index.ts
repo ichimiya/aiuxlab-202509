@@ -17,14 +17,6 @@ type VoiceSessionSummary = {
   }>;
 };
 
-function safeJson(value: unknown): string {
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
-}
-
 function buildSessionSummary(session: unknown): VoiceSessionSummary | null {
   if (!session || typeof session !== "object") return null;
 

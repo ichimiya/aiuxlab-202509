@@ -1,5 +1,7 @@
 import { create } from "zustand";
 import { devtools } from "zustand/middleware";
+import type { VoicePattern } from "@/shared/api/generated/models";
+import type { PendingIntent } from "@/shared/stores/voiceRecognitionStore";
 
 export interface ResearchState {
   selectedText: string;
@@ -9,6 +11,10 @@ export interface ResearchState {
   isListening: boolean;
   currentResearchId: string | null;
   textSelection?: TextSelection;
+  recognizedPattern?: VoicePattern;
+  intentConfidence?: number;
+  pendingIntent: PendingIntent | null;
+  voiceCommandHistory: VoiceCommandHistoryEntry[];
 }
 
 export interface ResearchActions {
@@ -21,6 +27,10 @@ export interface ResearchActions {
   setCurrentResearchId: (id: string | null) => void;
   setTextSelection: (payload: TextSelection | undefined) => void;
   clearTextSelection: () => void;
+  recordVoiceCommandResult: (entry: VoiceCommandHistoryEntry) => void;
+  getVoiceCommandHistory: () => VoiceCommandHistoryEntry[];
+  setPendingIntent: (intent: PendingIntent) => void;
+  clearPendingIntent: () => void;
   reset: () => void;
 }
 
@@ -33,6 +43,10 @@ const initialState: ResearchState = {
   partialTranscript: "",
   isListening: false,
   currentResearchId: null,
+  recognizedPattern: undefined,
+  intentConfidence: undefined,
+  pendingIntent: null,
+  voiceCommandHistory: [],
 };
 
 export interface TextSelectionMetadata {
@@ -50,9 +64,18 @@ export interface TextSelection {
   metadata?: TextSelectionMetadata;
 }
 
+export interface VoiceCommandHistoryEntry {
+  id: string;
+  originalText: string;
+  recognizedPattern?: VoicePattern;
+  confidence: number;
+  timestamp: Date;
+  displayText: string;
+}
+
 export const useResearchStore = create<ResearchStore>()(
   devtools(
-    (set) => ({
+    (set, get) => ({
       ...initialState,
 
       setSelectedText: (text) =>
@@ -125,6 +148,90 @@ export const useResearchStore = create<ResearchStore>()(
           }),
           false,
           "clearTextSelection",
+        ),
+
+      recordVoiceCommandResult: (entry) =>
+        set(
+          (state) => {
+            const normalizedConfidence = Number.isFinite(entry.confidence)
+              ? entry.confidence
+              : 0;
+            const existingIndex = state.voiceCommandHistory.findIndex(
+              (item) => item.id === entry.id,
+            );
+
+            const nextHistory = (() => {
+              if (existingIndex >= 0) {
+                const updated = [...state.voiceCommandHistory];
+                updated[existingIndex] = {
+                  ...updated[existingIndex],
+                  ...entry,
+                  confidence: normalizedConfidence,
+                };
+                return updated;
+              }
+              return [
+                {
+                  ...entry,
+                  confidence: normalizedConfidence,
+                },
+                ...state.voiceCommandHistory,
+              ].slice(0, 5);
+            })();
+
+            return {
+              ...state,
+              recognizedPattern: entry.recognizedPattern,
+              intentConfidence: normalizedConfidence,
+              voiceCommandHistory: nextHistory,
+            };
+          },
+          false,
+          "recordVoiceCommandResult",
+        ),
+
+      getVoiceCommandHistory: () => get().voiceCommandHistory,
+
+      setPendingIntent: (intent) =>
+        set(
+          (state) => {
+            const nextConfidence = Number.isFinite(intent.confidence)
+              ? intent.confidence
+              : state.intentConfidence;
+
+            const updatedHistory = state.voiceCommandHistory.length
+              ? [
+                  {
+                    ...state.voiceCommandHistory[0]!,
+                    confidence:
+                      Number.isFinite(intent.confidence) &&
+                      intent.confidence > 0
+                        ? intent.confidence
+                        : state.voiceCommandHistory[0]!.confidence,
+                  },
+                  ...state.voiceCommandHistory.slice(1),
+                ]
+              : state.voiceCommandHistory;
+
+            return {
+              ...state,
+              pendingIntent: intent,
+              intentConfidence: nextConfidence ?? state.intentConfidence,
+              voiceCommandHistory: updatedHistory,
+            };
+          },
+          false,
+          "setPendingIntent",
+        ),
+
+      clearPendingIntent: () =>
+        set(
+          (state) => ({
+            ...state,
+            pendingIntent: null,
+          }),
+          false,
+          "clearPendingIntent",
         ),
 
       reset: () => set(initialState, false, "reset"),

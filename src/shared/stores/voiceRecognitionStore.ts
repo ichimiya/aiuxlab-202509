@@ -22,6 +22,7 @@ export interface VoiceSessionState {
   latestTranscript?: string;
   evaluationSummary?: string;
   lastUpdatedAt: string;
+  pendingIntent?: PendingIntent | null;
 }
 
 export interface PendingIntent {
