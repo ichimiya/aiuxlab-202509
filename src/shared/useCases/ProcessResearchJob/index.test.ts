@@ -147,6 +147,20 @@ describe("ProcessResearchJob", () => {
       payload: { status: "completed" },
       createdAt: now,
     });
+
+    expect(deps.mocks.appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "snapshot",
+        payload: expect.objectContaining({ status: "completed" }),
+      }),
+    );
+
+    expect(deps.mocks.appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "result-appended",
+        payload: expect.objectContaining({ id: "research-uuid" }),
+      }),
+    );
   });
 
   it("Perplexityでエラーが発生した場合、failedに遷移しエラーイベントをPublishする", async () => {
@@ -207,5 +221,12 @@ describe("ProcessResearchJob", () => {
       payload: { message: "Perplexity timeout" },
       createdAt: now,
     });
+
+    expect(deps.mocks.appendEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: "error",
+        payload: { message: "Perplexity timeout" },
+      }),
+    );
   });
 });

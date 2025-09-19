@@ -32,7 +32,9 @@ describe("GET /api/research/:id", () => {
     const request = new NextRequest(
       "http://localhost:3000/api/research/research-uuid",
     );
-    const response = await GET(request, { params: { id: "research-uuid" } });
+    const response = await GET(request, {
+      params: Promise.resolve({ id: "research-uuid" }),
+    });
     const data = await response.json();
 
     expect(response.status).toBe(200);
@@ -46,7 +48,9 @@ describe("GET /api/research/:id", () => {
     const request = new NextRequest(
       "http://localhost:3000/api/research/missing",
     );
-    const response = await GET(request, { params: { id: "missing" } });
+    const response = await GET(request, {
+      params: Promise.resolve({ id: "missing" }),
+    });
     const data = await response.json();
 
     expect(response.status).toBe(404);

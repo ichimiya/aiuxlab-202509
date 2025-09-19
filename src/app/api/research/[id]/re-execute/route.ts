@@ -4,8 +4,9 @@ import { buildReExecuteResearchUseCase } from "@/shared/useCases/research/factor
 
 export async function POST(
   _request: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await context.params;
   try {
     const apiKey = process.env.PERPLEXITY_API_KEY;
     if (!apiKey) {
@@ -19,7 +20,7 @@ export async function POST(
     }
 
     const useCase = buildReExecuteResearchUseCase({ apiKey });
-    const snapshot = await useCase.execute({ researchId: context.params.id });
+    const snapshot = await useCase.execute({ researchId: id });
 
     return ok(snapshot, 202);
   } catch (error) {

@@ -29,7 +29,9 @@ describe("GET /api/research/:id/events", () => {
       "http://localhost:3000/api/research/research-uuid/events",
     );
 
-    const response = await GET(request, { params: { id: "research-uuid" } });
+    const response = await GET(request, {
+      params: Promise.resolve({ id: "research-uuid" }),
+    });
 
     expect(createEventStream).toHaveBeenCalledWith(
       expect.objectContaining({ researchId: "research-uuid" }),

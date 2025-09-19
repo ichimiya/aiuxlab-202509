@@ -279,7 +279,7 @@ export function createResearchDetailStore(
         const snapshot = current.snapshots[researchId];
         const connection = current.connections[researchId];
         const lastRevision = connection?.lastEventId ?? snapshot?.revision ?? 0;
-        if (!snapshot || event.revision <= lastRevision) {
+        if (!snapshot || event.revision < lastRevision) {
           return current;
         }
 

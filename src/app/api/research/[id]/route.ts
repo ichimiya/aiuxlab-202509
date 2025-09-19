@@ -4,11 +4,12 @@ import { createResearchRepository } from "@/shared/infrastructure/redis/research
 
 export async function GET(
   _request: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await context.params;
   try {
     const repository = createResearchRepository();
-    const snapshot = await repository.getSnapshot(context.params.id);
+    const snapshot = await repository.getSnapshot(id);
 
     if (!snapshot) {
       return fail(

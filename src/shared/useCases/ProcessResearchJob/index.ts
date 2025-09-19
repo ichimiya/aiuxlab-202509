@@ -4,6 +4,7 @@ import type {
   ResearchPersistencePort,
   ResearchResultSnapshot,
   ResearchSearchResultSnapshot,
+  ResearchSnapshot,
   SystemClockPort,
 } from "@/shared/useCases/ports/research";
 import type { ExecuteResearchUseCase } from "@/shared/useCases/ExecuteResearchUseCase";
@@ -43,11 +44,16 @@ export class ProcessResearchJob {
         researchId: snapshot.id,
       });
 
+      const mappedResults = mapResultsToSnapshot(research.results ?? []);
+      const mappedSearchResults = mapSearchResultsToSnapshot(
+        research.searchResults ?? [],
+      );
+
       const updated = await this.deps.persistence.updateSnapshot({
         id: snapshot.id,
         status: research.status ?? "completed",
-        results: mapResultsToSnapshot(research.results ?? []),
-        searchResults: mapSearchResultsToSnapshot(research.searchResults ?? []),
+        results: mappedResults,
+        searchResults: mappedSearchResults,
         citations: research.citations ?? [],
         updatedAt: this.deps.clock.now(),
         lastError: null,
@@ -60,6 +66,27 @@ export class ProcessResearchJob {
         payload: { status: updated.status },
         createdAt: updated.updatedAt,
       });
+
+      await this.emitSnapshotEvent(updated);
+
+      const existingResultIds = new Set(
+        (snapshot.results ?? []).map((result) => result.id),
+      );
+      const appendedResults = mappedResults.filter(
+        (result) => !existingResultIds.has(result.id),
+      );
+
+      for (const result of appendedResults) {
+        const resultEvent: ResearchEvent = {
+          id: updated.id,
+          revision: updated.revision,
+          type: "result-appended",
+          payload: result,
+          createdAt: updated.updatedAt,
+        };
+        await this.deps.persistence.appendEvent(resultEvent);
+        await this.deps.eventPublisher.publish(resultEvent);
+      }
     } catch (error) {
       const message = error instanceof Error ? error.message : "Unknown error";
       const updated = await this.deps.persistence.updateSnapshot({
@@ -87,6 +114,26 @@ export class ProcessResearchJob {
 
   private async publishEvent(event: ResearchEvent) {
     await this.deps.eventPublisher.publish(event);
+  }
+
+  private async emitSnapshotEvent(snapshot: ResearchSnapshot) {
+    const snapshotEvent: ResearchEvent = {
+      id: snapshot.id,
+      revision: snapshot.revision,
+      type: "snapshot",
+      payload: {
+        status: snapshot.status,
+        results: snapshot.results,
+        searchResults: snapshot.searchResults,
+        citations: snapshot.citations,
+        updatedAt: snapshot.updatedAt,
+        revision: snapshot.revision,
+        lastError: snapshot.lastError,
+      },
+      createdAt: snapshot.updatedAt,
+    };
+    await this.deps.persistence.appendEvent(snapshotEvent);
+    await this.deps.eventPublisher.publish(snapshotEvent);
   }
 }
 

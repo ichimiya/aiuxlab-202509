@@ -35,7 +35,9 @@ describe("POST /api/research/:id/re-execute", () => {
       { method: "POST" },
     );
 
-    const response = await POST(request, { params: { id: "research-uuid" } });
+    const response = await POST(request, {
+      params: Promise.resolve({ id: "research-uuid" }),
+    });
     const data = await response.json();
 
     expect(response.status).toBe(202);
@@ -54,7 +56,9 @@ describe("POST /api/research/:id/re-execute", () => {
       { method: "POST" },
     );
 
-    const response = await POST(request, { params: { id: "research-uuid" } });
+    const response = await POST(request, {
+      params: Promise.resolve({ id: "research-uuid" }),
+    });
     const data = await response.json();
 
     expect(response.status).toBe(500);

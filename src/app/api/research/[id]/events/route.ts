@@ -5,15 +5,16 @@ import { createResearchEventSubscriber } from "@/shared/infrastructure/events/re
 
 export async function GET(
   request: NextRequest,
-  context: { params: { id: string } },
+  context: { params: Promise<{ id: string }> },
 ) {
+  const { id } = await context.params;
   const lastEventId =
     request.headers.get("last-event-id") ??
     request.headers.get("Last-Event-ID") ??
     undefined;
 
   return createResearchEventStream({
-    researchId: context.params.id,
+    researchId: id,
     lastEventId,
     persistence: createResearchRepository(),
     subscriber: createResearchEventSubscriber(),
