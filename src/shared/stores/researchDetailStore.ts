@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import type {
   ResearchEvent,
+  ResearchResultSnapshot,
+  ResearchSearchResultSnapshot,
   ResearchSnapshot,
 } from "@/shared/useCases/ports/research";
 
@@ -133,9 +135,13 @@ function mergeResearchSnapshot(
       break;
     }
     case "result-appended": {
-      const payload = event.payload as ResearchSnapshot["results"][number];
+      const payload = event.payload as ResearchResultSnapshot;
       if (payload) {
-        next.results = [...(snapshot.results ?? []), payload];
+        const existing = new Map(
+          (snapshot.results ?? []).map((result) => [result.id, result]),
+        );
+        existing.set(payload.id, payload);
+        next.results = Array.from(existing.values());
       }
       break;
     }
@@ -149,7 +155,26 @@ function mergeResearchSnapshot(
     }
     case "snapshot": {
       if (event.payload && typeof event.payload === "object") {
-        Object.assign(next, event.payload);
+        const payload = event.payload as Partial<ResearchSnapshot> & {
+          results?: ResearchResultSnapshot[];
+          searchResults?: ResearchSearchResultSnapshot[];
+          citations?: string[];
+          lastError?: ResearchSnapshot["lastError"];
+          revision?: number;
+          status?: ResearchSnapshot["status"];
+        };
+
+        if (payload.status) next.status = payload.status;
+        if (payload.results) next.results = dedupeResults(payload.results);
+        if (payload.searchResults)
+          next.searchResults = payload.searchResults.map((result, index) => ({
+            ...result,
+            id: result.id ?? `search-${index + 1}`,
+          }));
+        if (payload.citations) next.citations = [...payload.citations];
+        if (payload.updatedAt) next.updatedAt = payload.updatedAt;
+        if (payload.lastError !== undefined) next.lastError = payload.lastError;
+        if (payload.revision) next.revision = payload.revision;
       }
       break;
     }
@@ -311,3 +336,13 @@ export function createResearchDetailStore(
 }
 
 export const useResearchDetailStore = createResearchDetailStore();
+
+function dedupeResults(
+  results: ResearchResultSnapshot[],
+): ResearchResultSnapshot[] {
+  const map = new Map<string, ResearchResultSnapshot>();
+  for (const result of results) {
+    map.set(result.id, result);
+  }
+  return Array.from(map.values());
+}
