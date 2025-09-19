@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["transcript"],
+  "properties": {
+    "transcript": {
+      "type": "string",
+      "description": "最新の音声テキスト（原文）"
+    },
+    "sessionSummary": {
+      "type": ["object", "null"],
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["idle", "optimizing", "ready", "researching"]
+        },
+        "selectedCandidateId": {
+          "type": ["string", "null"]
+        },
+        "candidates": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": ["string", "null"] },
+              "rank": { "type": ["integer", "number", "null"] },
+              "query": { "type": ["string", "null"] }
+            },
+            "additionalProperties": true
+          }
+        }
+      },
+      "additionalProperties": true
+    },
+    "history": {
+      "type": "array",
+      "description": "直近3件までのセッション履歴",
+      "items": { "type": "object" }
+    },
+    "metadata": {
+      "type": "object",
+      "description": "信頼度や言語などの付帯情報",
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": true
+}

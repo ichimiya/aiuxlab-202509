@@ -150,9 +150,11 @@ interface VoiceSessionState {
 
 1. `voice-intent-worker` が `VoiceEventJob` を受信
 2. Intent分類ロジックを実行（LLM呼び出し）
-   - プロトタイプ段階から LLM API を利用し、音声コンテキストをまとめたプロンプトで分類
-   - 入力: セッションコンテキスト（直近 transcript 3件、現在候補、ステータス）
-   - 出力例:
+
+- プロトタイプ段階から LLM API を利用し、音声コンテキストをまとめたプロンプトで分類
+- プロンプトは `src/shared/ai/prompts/voiceIntentClassifier.ts` で生成し、出力形式を JSON Schema（`src/shared/ai/schemas/voiceIntent.ts`）で厳密に指定。`intentId` は `VOICE_INTENT_IDS` 定数に列挙した値のみを許容し、追加フィールドは拒否するよう LLM に命令する。
+- 入力: セッションコンテキスト（直近 transcript 3件、現在候補、ステータス）
+- 出力例:
 
 ```json
 {
@@ -163,6 +165,10 @@ interface VoiceSessionState {
   }
 }
 ```
+
+> 補足: LLM応答には `confidenceBand` (auto/confirm/reject) や `rationale` が付与される場合があるが、アプリケーション層で必須となるのは `intentId` / `confidence` / `parameters` の3項目。
+
+> 実装メモ: 応答はサーバー側で Zod (`src/shared/ai/schemas/voiceIntent.ts`) による `safeParse` を通して検証し、万が一スキーマから外れた場合はフォールバックの正規化ロジックで補正する。
 
 3. `confidence` を閾値テーブル（`docs/voice-intent-spec.md` 定義）で判定し、`auto`/`confirm`/`reject` を決定
 4. `auto` の場合は Command に変換、`confirm` は `pendingIntent` としてセッションに格納

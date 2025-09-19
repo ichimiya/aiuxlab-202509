@@ -11,6 +11,13 @@ export interface BaseBedrockConfig {
   temperature?: number;
 }
 
+type PromptInput =
+  | string
+  | {
+      system?: string;
+      user: string;
+    };
+
 export class BaseBedrockClient {
   protected readonly client: BedrockRuntimeClient;
   protected readonly modelId: string;
@@ -33,14 +40,22 @@ export class BaseBedrockClient {
     this.temperature = config.temperature ?? 0.3;
   }
 
-  async invokePrompt(prompt: string): Promise<string> {
+  async invokePrompt(prompt: PromptInput): Promise<string> {
+    const isStringPrompt = typeof prompt === "string";
     const command = new InvokeModelCommand({
       modelId: this.modelId,
       body: JSON.stringify({
         anthropic_version: "bedrock-2023-05-31",
         max_tokens: this.maxTokens,
         temperature: this.temperature,
-        messages: [{ role: "user", content: prompt }],
+        ...(isStringPrompt
+          ? {}
+          : prompt.system
+            ? { system: prompt.system }
+            : {}),
+        messages: isStringPrompt
+          ? [{ role: "user", content: prompt }]
+          : [{ role: "user", content: prompt.user }],
       }),
     });
 
