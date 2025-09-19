@@ -70,7 +70,7 @@ export function buildVoiceIntentClassifierPrompt(
   };
 
   const responseSchemaLines = schemaLines(responseSchema);
-  const requestSchemaString = JSON.stringify(requestSchema, null, 2);
+  const requestSchemaLines = schemaLines(requestSchema);
 
   const systemPrompt = [
     "あなたは音声インターフェースのインテント分類器です。",
@@ -83,7 +83,9 @@ export function buildVoiceIntentClassifierPrompt(
     ),
     "",
     "### 入力スキーマ",
-    JSON.stringify(requestSchema, null, 2),
+    "{",
+    ...requestSchemaLines,
+    "}",
     "",
     "### 出力ルール",
     "1. intentId は必ず列挙済みの CONSTANT_CASE を返す",
