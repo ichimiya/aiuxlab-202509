@@ -144,9 +144,9 @@ export function ResearchDetailView({ id }: ResearchDetailViewProps) {
           <section className="space-y-3">
             <h3 className="text-lg font-semibold">リサーチ結果</h3>
             <div className="space-y-4">
-              {snapshot.results.map((result) => (
+              {snapshot.results.map((result, index) => (
                 <article
-                  key={result.id}
+                  key={`${result.id}-${index}`}
                   className="p-4 border border-gray-200 dark:border-gray-700 rounded-lg"
                 >
                   <div className="flex items-center justify-between">
