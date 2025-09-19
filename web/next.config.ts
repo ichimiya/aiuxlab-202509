@@ -1,9 +1,15 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  // Webpack設定（Turbopack対応）
+import path from "path";
+import type { NextConfig } from "next";
+
+const resolvedRoot = path.resolve(__dirname);
+console.info("[next-config] turbopack.root:", resolvedRoot);
+
+const nextConfig: NextConfig = {
+  turbopack: {
+    root: resolvedRoot,
+  },
   webpack: (config, { isServer }) => {
     if (!isServer) {
-      // ブラウザ側でNode.jsモジュールを無効化
       config.resolve.fallback = {
         ...config.resolve.fallback,
         fs: false,
@@ -25,4 +31,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

@@ -1,13 +1,10 @@
-#!/usr/bin/env sh
-. "$(dirname -- "$0")/_/husky.sh"
-
 echo "🔍 Running pre-commit checks..."
 
 # Generate API types if OpenAPI schema changed
-if git diff --cached --name-only | grep -q "src/shared/api/schemas/"; then
+if git diff --cached --name-only | grep -q "web/src/shared/api/schemas/"; then
   echo "📡 OpenAPI schema changed, regenerating API types..."
   pnpm generate:api
-  git add src/shared/api/generated/
+  git add web/src/shared/api/generated/
 fi
 
 # Auto-fix and run quality checks
