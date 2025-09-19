@@ -56,7 +56,7 @@ const defaultDeps: ResearchDetailStoreDeps = {
     }
 
     let url = `/api/research/${researchId}/events`;
-    if (lastEventId) {
+    if (lastEventId !== undefined) {
       const separator = url.includes("?") ? "&" : "?";
       url = `${url}${separator}lastEventId=${encodeURIComponent(String(lastEventId))}`;
     }
@@ -72,7 +72,7 @@ const defaultDeps: ResearchDetailStoreDeps = {
     const listeners = eventTypes.map((eventType) => {
       const handler = (evt: MessageEvent<string>) => {
         const revision = evt.lastEventId ? Number(evt.lastEventId) : undefined;
-        if (!revision) return;
+        if (revision === undefined || Number.isNaN(revision)) return;
         let payload: unknown = undefined;
         if (evt.data) {
           try {
@@ -118,7 +118,7 @@ function mergeResearchSnapshot(
     lastError: snapshot.lastError ? { ...snapshot.lastError } : null,
   };
 
-  if (event.createdAt) {
+  if (event.createdAt && !snapshot.updatedAt) {
     next.updatedAt = event.createdAt;
   }
   next.revision = event.revision;
@@ -165,16 +165,18 @@ function mergeResearchSnapshot(
         };
 
         if (payload.status) next.status = payload.status;
-        if (payload.results) next.results = dedupeResults(payload.results);
-        if (payload.searchResults)
+        if (payload.results !== undefined)
+          next.results = dedupeResults(payload.results);
+        if (payload.searchResults !== undefined)
           next.searchResults = payload.searchResults.map((result, index) => ({
             ...result,
             id: result.id ?? `search-${index + 1}`,
           }));
-        if (payload.citations) next.citations = [...payload.citations];
+        if (payload.citations !== undefined)
+          next.citations = [...payload.citations];
         if (payload.updatedAt) next.updatedAt = payload.updatedAt;
         if (payload.lastError !== undefined) next.lastError = payload.lastError;
-        if (payload.revision) next.revision = payload.revision;
+        if (payload.revision !== undefined) next.revision = payload.revision;
       }
       break;
     }
@@ -309,18 +311,26 @@ export function createResearchDetailStore(
         }
 
         const updatedSnapshot = mergeResearchSnapshot(snapshot, event);
+        const previousStatus = connection?.status;
+        const previousError = connection?.error;
+
+        const nextConnection: ResearchConnectionState = {
+          status: event.type === "error" ? (previousStatus ?? "open") : "open",
+          lastEventId: event.revision,
+        };
+
+        if (
+          event.type !== "error" &&
+          (previousStatus === "error" || previousError !== undefined)
+        ) {
+          nextConnection.error = undefined;
+        } else if (event.type === "error" && previousError !== undefined) {
+          nextConnection.error = previousError;
+        }
+
         const nextConnections = {
           ...current.connections,
-          [researchId]: {
-            status:
-              event.type === "error" ? "error" : (connection?.status ?? "open"),
-            lastEventId: event.revision,
-            error:
-              event.type === "error"
-                ? ((event.payload as { message?: string })?.message ??
-                  "Event error")
-                : undefined,
-          },
+          [researchId]: nextConnection,
         };
 
         return {

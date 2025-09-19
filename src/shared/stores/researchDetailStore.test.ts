@@ -111,7 +111,7 @@ describe("researchDetailStore", () => {
     expect(state.connections["research-uuid"].lastEventId).toBe(2);
   });
 
-  it("errorイベントでlastErrorが反映される", async () => {
+  it("errorイベントでlastErrorが反映されても接続状態は維持される", async () => {
     const store = createResearchDetailStore({ fetchSnapshot, openEventStream });
     await store.getState().connect("research-uuid");
 
@@ -129,7 +129,8 @@ describe("researchDetailStore", () => {
     expect(state.snapshots["research-uuid"].lastError).toEqual({
       message: "Perplexity timeout",
     });
-    expect(state.connections["research-uuid"].status).toBe("error");
+    expect(state.connections["research-uuid"].status).toBe("open");
+    expect(state.connections["research-uuid"].error).toBeUndefined();
   });
 
   it("イベント処理後に再接続するとlastEventIdを引き継ぐ", async () => {
@@ -174,5 +175,139 @@ describe("researchDetailStore", () => {
       lastEventId: 1,
       error: "SSE connection lost",
     });
+  });
+
+  it("errorイベントの後に別種のイベントが届くと接続状態が復旧する", async () => {
+    const store = createResearchDetailStore({ fetchSnapshot, openEventStream });
+    await store.getState().connect("research-uuid");
+
+    const errorEvent: ResearchEvent = {
+      id: "research-uuid",
+      revision: 2,
+      type: "error",
+      payload: { message: "temporary failure" },
+      createdAt: "2025-09-18T10:02:00.000Z",
+    };
+    eventListeners[0]?.(errorEvent);
+
+    const statusEvent: ResearchEvent = {
+      id: "research-uuid",
+      revision: 3,
+      type: "status",
+      payload: { status: "pending" },
+      createdAt: "2025-09-18T10:03:00.000Z",
+    };
+    eventListeners[0]?.(statusEvent);
+
+    const state = store.getState();
+    expect(state.connections["research-uuid"].status).toBe("open");
+    expect(state.connections["research-uuid"].error).toBeUndefined();
+    expect(state.connections["research-uuid"].lastEventId).toBe(3);
+  });
+
+  it("snapshotイベントで空配列やnullを反映できる", async () => {
+    fetchSnapshot.mockResolvedValueOnce(
+      structuredClone({
+        ...baseSnapshot,
+        results: [
+          {
+            id: "result-1",
+            content: "content",
+            relevanceScore: 0.5,
+            source: "perplexity",
+          },
+        ],
+        searchResults: [
+          {
+            id: "search-1",
+            title: "title",
+            url: "https://example.com",
+          },
+        ],
+        citations: ["citation-1"],
+        lastError: {
+          message: "previous",
+        },
+      }),
+    );
+
+    const store = createResearchDetailStore({ fetchSnapshot, openEventStream });
+    await store.getState().connect("research-uuid");
+
+    const snapshotEvent: ResearchEvent = {
+      id: "research-uuid",
+      revision: 2,
+      type: "snapshot",
+      payload: {
+        results: [],
+        searchResults: [],
+        citations: [],
+        lastError: null,
+        status: "completed",
+        updatedAt: "2025-09-18T10:05:00.000Z",
+      },
+      createdAt: "2025-09-18T10:05:00.000Z",
+    };
+
+    eventListeners[0]?.(snapshotEvent);
+
+    const state = store.getState();
+    expect(state.snapshots["research-uuid"].results).toHaveLength(0);
+    expect(state.snapshots["research-uuid"].searchResults).toHaveLength(0);
+    expect(state.snapshots["research-uuid"].citations).toHaveLength(0);
+    expect(state.snapshots["research-uuid"].lastError).toBeNull();
+    expect(state.snapshots["research-uuid"].status).toBe("completed");
+  });
+
+  it("revision 0 のスナップショットでも接続を再開し、イベントを処理できる", async () => {
+    fetchSnapshot.mockResolvedValueOnce(
+      structuredClone({
+        ...baseSnapshot,
+        revision: 0,
+        updatedAt: "2025-09-18T10:00:00.000Z",
+      }),
+    );
+
+    const store = createResearchDetailStore({ fetchSnapshot, openEventStream });
+    await store.getState().connect("research-uuid");
+
+    expect(openEventStream).toHaveBeenLastCalledWith(
+      expect.objectContaining({ lastEventId: 0 }),
+    );
+
+    const statusEvent: ResearchEvent = {
+      id: "research-uuid",
+      revision: 0,
+      type: "status",
+      payload: { status: "completed" },
+      createdAt: "2025-09-18T10:01:00.000Z",
+    };
+
+    eventListeners[0]?.(statusEvent);
+
+    const state = store.getState();
+    expect(state.snapshots["research-uuid"].status).toBe("completed");
+    expect(state.connections["research-uuid"].lastEventId).toBe(0);
+  });
+
+  it("ドメインイベントではupdatedAtを上書きしない", async () => {
+    const store = createResearchDetailStore({ fetchSnapshot, openEventStream });
+    await store.getState().connect("research-uuid");
+
+    const initialUpdatedAt =
+      store.getState().snapshots["research-uuid"].updatedAt;
+
+    const errorEvent: ResearchEvent = {
+      id: "research-uuid",
+      revision: 2,
+      type: "error",
+      payload: { message: "temporary failure" },
+      createdAt: "2025-09-18T10:02:00.000Z",
+    };
+
+    eventListeners[0]?.(errorEvent);
+
+    const state = store.getState();
+    expect(state.snapshots["research-uuid"].updatedAt).toBe(initialUpdatedAt);
   });
 });
