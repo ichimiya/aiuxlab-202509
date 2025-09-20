@@ -1,12 +1,12 @@
 import path from "path";
 import type { NextConfig } from "next";
 
-const resolvedRoot = path.resolve(__dirname);
-console.info("[next-config] turbopack.root:", resolvedRoot);
+const turbopackRoot = path.resolve(__dirname, "..");
+console.info("[next-config] turbopack.root:", turbopackRoot);
 
 const nextConfig: NextConfig = {
   turbopack: {
-    root: resolvedRoot,
+    root: turbopackRoot,
   },
   webpack: (config, { isServer }) => {
     if (!isServer) {
