@@ -4,8 +4,7 @@
   "private": true,
   "description": "AI時代の新しいリサーチ体験を探索する実験的POC",
   "scripts": {
-    "dev": "next dev",
-    "dev:turbopack": "next dev --turbopack",
+    "dev": "next dev --turbopack",
     "build": "pnpm generate:api && next build --turbopack",
     "start": "next start",
     "lint": "eslint .",
