@@ -1,0 +1,103 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Neon Network 3D — AI Research</title>
+    <style>
+      :root{ --bg:#121224; --panel:#1A1A2A; --text:#E0E0E0; --muted:#A0A0A0; --cyan:#7BE7F8; }
+      html, body { margin:0; height:100%; background:var(--bg); color:var(--text) }
+      #gfx { width:100vw; height:100vh; display:block }
+      .panel{ position:fixed; left:12px; top:12px; width:320px; background:var(--panel); border:1px solid rgba(0,255,255,.2); border-radius:10px; padding:12px 14px; font:12px/1.5 -apple-system, system-ui, sans-serif; box-shadow:0 0 24px rgba(0,255,255,.06) }
+      .row{ display:flex; align-items:center; gap:8px; margin:8px 0 }
+      .row label{ flex:0 0 120px; color:var(--muted); font-size:11px }
+      .val{ width:46px; text-align:right; font-variant-numeric:tabular-nums; color:#9cd }
+      .hint{ position:fixed; right:12px; bottom:12px; color:#8fb9ff; opacity:.8 }
+    </style>
+  </head>
+  <body>
+    <canvas id="gfx"></canvas>
+    <div class="panel">
+      <h2 style="margin:0 0 8px;font-size:12px;letter-spacing:.08em;color:#fff">Neon Network 3D</h2>
+      <div class="row"><label>Edge Thickness</label><input id="th" type="range" min="0.001" max="0.02" step="0.001" value="0.006"><span id="vth" class="val"></span></div>
+      <div class="row"><label>Node Size</label><input id="ns" type="range" min="0.03" max="0.20" step="0.005" value="0.08"><span id="vns" class="val"></span></div>
+      <div class="row"><label>Flow Speed</label><input id="fs" type="range" min="0.2" max="3.0" step="0.05" value="1.0"><span id="vfs" class="val"></span></div>
+      <div class="row"><label>Rotate Speed</label><input id="rs" type="range" min="-1.0" max="1.0" step="0.02" value="0.04"><span id="vrs" class="val"></span></div>
+      <div class="row"><label>Fog Start</label><input id="fgs" type="range" min="0.0" max="1.0" step="0.01" value="0.55"><span id="vfgs" class="val"></span></div>
+      <div class="row"><label>Fog End</label><input id="fge" type="range" min="0.0" max="1.0" step="0.01" value="0.95"><span id="vfge" class="val"></span></div>
+      <div class="row"><label>Fog Strength</label><input id="fgi" type="range" min="0.0" max="2.0" step="0.05" value="0.8"><span id="vfgi" class="val"></span></div>
+      <div class="row"><label>All Links</label><input id="ap" type="checkbox"><span style="font-size:11px;color:#8fb9ff"> (all pairs)</span></div>
+      <div class="row"><label>Link Start</label><input id="lks" type="range" min="0.1" max="2.0" step="0.05" value="0.8"><span id="vlks" class="val"></span></div>
+      <div class="row"><label>Link End</label><input id="lke" type="range" min="0.2" max="3.0" step="0.05" value="1.4"><span id="vlke" class="val"></span></div>
+      <div class="row"><label>Inner Heavy</label><input id="ih" type="checkbox"><span style="font-size:11px;color:#8fb9ff"> (more inner nodes)</span></div>
+      <div class="row"><label>Nucleus</label><input id="nu" type="checkbox"><span style="font-size:11px;color:#8fb9ff"> (center hub)</span></div>
+      <div class="row"><label>Nuc Start</label><input id="nls" type="range" min="0.1" max="3.0" step="0.05" value="0.3"><span id="vnls" class="val"></span></div>
+      <div class="row"><label>Nuc End</label><input id="nle" type="range" min="0.2" max="5.0" step="0.05" value="2.0"><span id="vnle" class="val"></span></div>
+    </div>
+    <div class="hint">Neon Network Graph — 3D WebGPU</div>
+    <script type="module">
+      import init, { start_graph, frame_graph, resize_graph, set_graph_params, set_graph3d_params, set_graph3d_fog, set_graph3d_allpairs, set_graph3d_link_fade, set_graph3d_shell_profile, set_graph3d_nucleus } from "./pkg/wasm_wgpu_demo.js";
+      if (!('gpu' in navigator)) {
+        document.body.innerHTML = "<p style='color:#fff;padding:16px'>This browser doesn't support WebGPU.</p>";
+      } else {
+        await init();
+        await start_graph("gfx");
+        // Debug/console access
+        window.set_graph3d_allpairs = set_graph3d_allpairs;
+        window.set_graph3d_link_fade = set_graph3d_link_fade;
+        window.set_graph3d_shell_profile = set_graph3d_shell_profile;
+        window.set_graph3d_nucleus = set_graph3d_nucleus;
+        // set_graph3d_nucleus_fade may not exist in older bundle; shim fallback to link_fade
+        try {
+          const mod = await import('./pkg/wasm_wgpu_demo.js');
+          if ('set_graph3d_nucleus_fade' in mod) {
+            window.set_graph3d_nucleus_fade = mod.set_graph3d_nucleus_fade;
+          } else {
+            window.set_graph3d_nucleus_fade = set_graph3d_link_fade;
+          }
+        } catch(e) {
+          window.set_graph3d_nucleus_fade = set_graph3d_link_fade;
+        }
+        const raf = (t) => { frame_graph(t); requestAnimationFrame(raf); }; requestAnimationFrame(raf);
+        const canvas = document.getElementById("gfx");
+        const onResize=()=>{ canvas.width=canvas.clientWidth; canvas.height=canvas.clientHeight; resize_graph(canvas.width, canvas.height);};
+        onResize(); new ResizeObserver(onResize).observe(canvas);
+        const $ = (id)=>document.getElementById(id);
+        const sync = ()=>{
+          $("vth").textContent = parseFloat($("th").value).toFixed(3);
+          $("vns").textContent = parseFloat($("ns").value).toFixed(3);
+          $("vfs").textContent = parseFloat($("fs").value).toFixed(2);
+          $("vrs").textContent = parseFloat($("rs").value).toFixed(2);
+          set_graph_params(parseFloat($("th").value), parseFloat($("ns").value), parseFloat($("fs").value));
+          set_graph3d_params(parseFloat($("rs").value));
+          $("vfgs").textContent = parseFloat($("fgs").value).toFixed(2);
+          $("vfge").textContent = parseFloat($("fge").value).toFixed(2);
+          $("vfgi").textContent = parseFloat($("fgi").value).toFixed(2);
+          set_graph3d_fog(parseFloat($("fgs").value), parseFloat($("fge").value), parseFloat($("fgi").value));
+          // Nucleus priority over All pairs
+          if ($("nu").checked) {
+            if ($("ap").checked) { $("ap").checked = false; }
+            set_graph3d_nucleus(true);
+          } else {
+            set_graph3d_nucleus(false);
+            set_graph3d_allpairs($("ap").checked);
+          }
+          $("vlks").textContent = parseFloat($("lks").value).toFixed(2);
+          $("vlke").textContent = parseFloat($("lke").value).toFixed(2);
+          set_graph3d_link_fade(parseFloat($("lks").value), parseFloat($("lke").value));
+          if ($("nls")) {
+            $("vnls").textContent = parseFloat($("nls").value).toFixed(2);
+            $("vnle").textContent = parseFloat($("nle").value).toFixed(2);
+            window.set_graph3d_nucleus_fade(parseFloat($("nls").value), parseFloat($("nle").value));
+          }
+          // Shell profile (0:default,1:inner)
+          set_graph3d_shell_profile($("ih").checked ? 1 : 0);
+        };
+        ["th","ns","fs","rs","fgs","fge","fgi","lks","lke","nls","nle"].forEach(id=>{ const el=$(id); if (el) el.addEventListener('input', sync); });
+        $("ap").addEventListener('change', sync);
+        $("ih").addEventListener('change', sync);
+        $("nu").addEventListener('change', sync);
+        sync();
+      }
+    </script>
+  </body>
+  </html>

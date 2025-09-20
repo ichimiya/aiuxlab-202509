@@ -37,6 +37,7 @@ pnpm dev
 ## プロジェクト構成
 
 - `web/` - Next.js アプリケーション（Turbopack 対応）
+- `wasm/` - Rust + WebGPU エフェクト（`wasm-pack` でビルドし `web/` から利用）
 - `packages/` - WASM エフェクトなど共有モジュールを配置予定
 
 ### 品質チェック
