@@ -56,15 +56,6 @@ export function ResearchInterface() {
   return (
     <div className="max-w-4xl mx-auto p-6">
       <div className="space-y-6">
-        {/* Main Search */}
-        <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-center">NOVA</h1>
-          <p className="text-center text-gray-600 dark:text-gray-400">
-            Network Oriented Visualized Analysis
-            で複雑な関係性を可視化し、新しい気づきを発見
-          </p>
-        </div>
-
         {/* Query Input */}
         <div className="space-y-2">
           <label htmlFor="query" className="block text-sm font-medium">
