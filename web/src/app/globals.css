@@ -1,0 +1,131 @@
+@import "tailwindcss";
+
+:root {
+  --background: #121224;
+  --foreground: #ededed;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #121224;
+    --foreground: #ededed;
+  }
+}
+
+body {
+  /* background: url("/pexels-sohi-807598.jpg"); */
+  color: var(--foreground);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.globalBackgrounda {
+  background-color: #030314;
+  background-image:
+    radial-gradient(
+      circle at 15% 20%,
+      rgba(16, 132, 255, 0.35),
+      transparent 55%
+    ),
+    radial-gradient(
+      circle at 80% 15%,
+      rgba(123, 77, 255, 0.28),
+      transparent 52%
+    ),
+    radial-gradient(
+      circle at 60% 65%,
+      rgba(20, 229, 255, 0.32),
+      transparent 58%
+    ),
+    radial-gradient(
+      circle at 25% 75%,
+      rgba(255, 77, 214, 0.22),
+      transparent 60%
+    ),
+    radial-gradient(
+      circle at 90% 85%,
+      rgba(16, 132, 255, 0.18),
+      transparent 62%
+    );
+  background-repeat: no-repeat;
+  background-size:
+    140% 140%,
+    120% 120%,
+    130% 130%,
+    150% 150%,
+    160% 160%;
+  background-blend-mode: screen;
+  animation: meshGradientShift 18s ease-in-out infinite alternate;
+}
+
+.wasm-stage {
+  position: relative;
+  width: 100%;
+  max-width: 72rem;
+  aspect-ratio: 16 / 9;
+  max-height: calc(100vh - 40px);
+  overflow: hidden;
+  border-radius: 40px;
+  padding: 20px;
+  background-color: rgba(255, 255, 255, 0);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(10px);
+}
+
+.wasm-stage-inner {
+  position: relative;
+  z-index: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 36px;
+  padding: 1.5rem;
+  background-color: rgba(18, 18, 36, 0.8);
+  /* background-color: transparent; */
+  overflow: hidden;
+}
+
+.wasm-stage-inner > canvas {
+  z-index: 0;
+}
+
+.wasm-stage-inner > :not(canvas) {
+  position: relative;
+  z-index: 1;
+}
+
+@keyframes meshGradientShift {
+  0% {
+    background-position:
+      18% 22%,
+      78% 18%,
+      58% 62%,
+      24% 78%,
+      92% 88%;
+  }
+  50% {
+    background-position:
+      25% 18%,
+      70% 22%,
+      62% 68%,
+      18% 70%,
+      86% 82%;
+  }
+  100% {
+    background-position:
+      12% 26%,
+      84% 12%,
+      66% 60%,
+      30% 80%,
+      90% 90%;
+  }
+}

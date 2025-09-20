@@ -1,0 +1,5 @@
+target/
+pkg/
+web/pkg/
+wasm-pack.log
+*.wasm
