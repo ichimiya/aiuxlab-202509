@@ -58,9 +58,10 @@ export function ResearchInterface() {
       <div className="space-y-6">
         {/* Main Search */}
         <div className="space-y-2">
-          <h1 className="text-2xl font-bold text-center">AI Research POC</h1>
+          <h1 className="text-2xl font-bold text-center">NOVA</h1>
           <p className="text-center text-gray-600 dark:text-gray-400">
-            テキスト選択 + 音声コマンドによる直感的なリサーチ体験
+            Network Oriented Visualized Analysis
+            で複雑な関係性を可視化し、新しい気づきを発見
           </p>
         </div>
 

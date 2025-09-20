@@ -17,8 +17,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Research POC",
-  description: "AI時代の新しいリサーチ体験を探索する実験的POC",
+  title: "NOVA",
+  description:
+    "NOVA provides Network Oriented Visualized Analysis, enabling users to explore complex data relationships through intuitive network graphs and uncover hidden insights.",
 };
 
 export default function RootLayout({

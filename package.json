@@ -2,7 +2,7 @@
   "name": "aiuxlab-monorepo",
   "version": "0.1.0",
   "private": true,
-  "description": "AI Research POC monorepo",
+  "description": "NOVA provides Network Oriented Visualized Analysis, enabling users to explore complex data relationships through intuitive network graphs and uncover hidden insights.",
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",

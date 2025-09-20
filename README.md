@@ -1,6 +1,11 @@
-# AI Research POC
+# NOVA
 
-AI時代の新しいリサーチ体験を探索する実験的POC
+NOVA provides Network Oriented Visualized Analysis, enabling users to explore complex data relationships through intuitive network graphs and uncover hidden insights.
+
+## サービス名称について
+
+- **名称**: NOVA
+- **由来**: Network Oriented Visualized Analysis ― 情報をネットワークとして結びつけ、それを可視化することで新しい気づきを得ることを表現
 
 ## ドキュメント
 

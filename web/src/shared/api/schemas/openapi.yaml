@@ -1,7 +1,7 @@
 openapi: 3.0.0
 info:
-  title: AI Research POC API
-  description: AI時代の新しいリサーチ体験を探索するPOC API
+  title: NOVA API
+  description: NOVA provides Network Oriented Visualized Analysis via intuitive network graphs to uncover hidden insights.
   version: 0.1.0
 
 servers:
