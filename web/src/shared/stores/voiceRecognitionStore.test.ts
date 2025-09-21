@@ -97,13 +97,26 @@ describe("voiceRecognitionStore", () => {
   });
 
   it("リスニング状態を開始・停止できる", () => {
-    const { startListening, stopListening } =
+    const { startListening, stopListening, setListeningStatus } =
       useVoiceRecognitionStore.getState();
 
     startListening();
     expect(useVoiceRecognitionStore.getState().isListening).toBe(true);
+    expect(useVoiceRecognitionStore.getState().listeningStatus).toBe("active");
 
     stopListening();
     expect(useVoiceRecognitionStore.getState().isListening).toBe(false);
+    expect(useVoiceRecognitionStore.getState().listeningStatus).toBe("idle");
+
+    setListeningStatus("starting");
+    expect(useVoiceRecognitionStore.getState().listeningStatus).toBe(
+      "starting",
+    );
+    // transitioning state should keep current boolean until resolved
+    expect(useVoiceRecognitionStore.getState().isListening).toBe(false);
+
+    setListeningStatus("error");
+    expect(useVoiceRecognitionStore.getState().isListening).toBe(false);
+    expect(useVoiceRecognitionStore.getState().listeningStatus).toBe("error");
   });
 });

@@ -1,38 +1,38 @@
 "use client";
 
-import React from "react";
+import React, { type ButtonHTMLAttributes, type ReactNode } from "react";
 import { useVoiceRecognitionButtonViewModel } from "./useVoiceRecognitionButtonViewModel";
 
-interface Props {
-  className?: string;
-  disabled?: boolean;
-}
+type Props = {
+  children?: ReactNode;
+} & Omit<
+  ButtonHTMLAttributes<HTMLButtonElement>,
+  "onClick" | "children" | "disabled"
+> & {
+    disabled?: boolean;
+    className?: string;
+  };
 
-export function VoiceRecognitionButton({ className, disabled }: Props) {
+export function VoiceRecognitionButton({
+  className,
+  disabled,
+  children,
+  type = "button",
+  ...rest
+}: Props) {
   const viewModel = useVoiceRecognitionButtonViewModel();
+
+  const isDisabled = disabled ?? viewModel.buttonState.isDisabled;
 
   return (
     <button
-      type="button"
+      type={type}
       onClick={viewModel.handleToggleListening}
-      disabled={disabled || viewModel.buttonState.isDisabled}
-      className={`${viewModel.buttonState.className} ${className || ""}`}
+      disabled={isDisabled}
+      className={className}
+      {...rest}
     >
-      {viewModel.buttonState.showIcon && (
-        <svg
-          className="w-5 h-5 mr-2 inline-block"
-          fill="currentColor"
-          viewBox="0 0 20 20"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fillRule="evenodd"
-            d="M7 4a3 3 0 016 0v4a3 3 0 11-6 0V4zm4 10.93A7.001 7.001 0 0017 8a1 1 0 10-2 0A5 5 0 015 8a1 1 0 00-2 0 7.001 7.001 0 006 6.93V17H6a1 1 0 100 2h8a1 1 0 100-2h-3v-2.07z"
-            clipRule="evenodd"
-          />
-        </svg>
-      )}
-      {viewModel.buttonState.text}
+      {children ?? <>{viewModel.buttonState.text}</>}
     </button>
   );
 }
