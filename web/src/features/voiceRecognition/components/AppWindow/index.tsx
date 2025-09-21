@@ -4,6 +4,7 @@ import React, {
   type HTMLAttributes,
   type ReactNode,
   type CSSProperties,
+  useMemo,
 } from "react";
 import Image from "next/image";
 import { VoiceRecognitionButton } from "../VoiceRecognitionButton";
@@ -27,11 +28,13 @@ export function AppWindow({
   children,
   className,
   innerClassName,
+  style,
   ...rest
 }: AppWindowProps) {
   const listeningStatus = useVoiceRecognitionStore(
     (state) => state.listeningStatus,
   );
+  const sessionState = useVoiceRecognitionStore((state) => state.sessionState);
   const isActive = listeningStatus === "active";
   const isTransitioning =
     listeningStatus === "starting" || listeningStatus === "stopping";
@@ -41,9 +44,62 @@ export function AppWindow({
     transition: "filter 0.3s ease",
   };
 
+  type WindowPhase = "idle" | "optimizing" | "research";
+
+  const phase: WindowPhase = useMemo(() => {
+    if (
+      sessionState?.status === "researching" ||
+      sessionState?.status === "ready"
+    ) {
+      return "research";
+    }
+    if (
+      listeningStatus === "starting" ||
+      listeningStatus === "active" ||
+      sessionState?.status === "optimizing"
+    ) {
+      return "optimizing";
+    }
+    return "idle";
+  }, [listeningStatus, sessionState?.status]);
+
+  const containerStyle: CSSProperties = useMemo(() => {
+    switch (phase) {
+      case "optimizing":
+        return {
+          width: "max(60vw, 600px)",
+          height: "max(30vh, 300px)",
+        };
+      case "research":
+        return {
+          width: "max(90vw, 1024px)",
+          height: "max(90vh, 768px)",
+        };
+      case "idle":
+      default:
+        return {
+          width: "380px",
+          height: "165px",
+        };
+    }
+  }, [phase]);
+
+  const transitionStyle: CSSProperties = {
+    transition: "width 1s ease, height 1s ease",
+    boxSizing: "border-box",
+    ...containerStyle,
+  };
+
   return (
-    <div {...rest} className={mergeClassNames(OUTER_BASE_CLASSES, className)}>
-      <div className={mergeClassNames(INNER_BASE_CLASSES, innerClassName)}>
+    <div
+      {...rest}
+      className={mergeClassNames(OUTER_BASE_CLASSES, className)}
+      style={{ ...transitionStyle, ...style }}
+    >
+      <div
+        className={mergeClassNames(INNER_BASE_CLASSES, innerClassName)}
+        style={transitionStyle}
+      >
         <VoiceRecognitionButton
           className="focus:outline-none"
           disabled={isTransitioning}

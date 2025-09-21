@@ -78,4 +78,36 @@ describe("AppWindow logo button", () => {
 
     expect(logo).toHaveStyle({ filter: "grayscale(0%)" });
   });
+
+  it("状態に応じてコンテナサイズが切り替わる", () => {
+    const { getByTestId } = render(
+      <AppWindow data-testid="app-window">
+        <div>child</div>
+      </AppWindow>,
+    );
+
+    const container = getByTestId("app-window");
+    expect(container).toHaveStyle({ width: "300px", height: "85px" });
+
+    act(() => {
+      useVoiceRecognitionStore.getState().setListeningStatus("starting");
+    });
+    expect(container).toHaveStyle({
+      width: "max(60vw, 600px)",
+      height: "max(30vh, 300px)",
+    });
+
+    act(() => {
+      useVoiceRecognitionStore.getState().setSessionState({
+        sessionId: "session-1",
+        status: "researching",
+        candidates: [],
+        lastUpdatedAt: new Date().toISOString(),
+      });
+    });
+    expect(container).toHaveStyle({
+      width: "max(90vw, 1024px)",
+      height: "max(90vh, 768px)",
+    });
+  });
 });
