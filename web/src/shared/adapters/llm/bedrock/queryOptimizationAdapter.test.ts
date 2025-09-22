@@ -62,9 +62,10 @@ describe("BedrockQueryOptimizationAdapter", () => {
     expect(result.candidates[0].query).toMatch(/リスク|安全/);
     const last = invokedInputs.at(-1);
     const sent = JSON.parse(last.body);
-    const content: string = sent.messages?.[0]?.content as string;
-    expect(content).toContain("選択テキスト");
-    expect(content).toContain("音声コマンド");
+    expect(typeof sent.system).toBe("string");
+    const userPayload = JSON.parse(sent.messages?.[0]?.content as string);
+    expect(userPayload.contextSummary).toContain("選択テキスト");
+    expect(userPayload.contextSummary).toContain("音声コマンド");
   });
 
   it("Bedrock応答が不正JSONならエラーを投げる", async () => {
@@ -102,13 +103,12 @@ describe("BedrockQueryOptimizationAdapter", () => {
     await client.optimizeQuery({ originalQuery: "AIって危険？" });
     const last = invokedInputs.at(-1);
     const sent = JSON.parse(last.body);
-    const content: string = sent.messages?.[0]?.content as string;
-    expect(content).toContain("### OUTPUT_JSON_ONLY");
-    expect(content).toContain("candidates");
-    expect(content).toContain("coverageScore");
-    expect(content).toContain("coverageExplanation");
-    expect(content).toContain("### CONTEXT");
-    expect(content).toContain("### PRINCIPLES");
+    const system: string = sent.system as string;
+    expect(system).toContain("### OUTPUT_JSON_ONLY");
+    expect(system).toContain("candidates");
+    expect(system).toContain("coverageScore");
+    expect(system).toContain("coverageExplanation");
+    expect(system).toContain("### PRINCIPLES");
   });
 
   it("プロンプトに現在年と最近の年範囲が含まれる(2025固定)", async () => {
@@ -136,10 +136,10 @@ describe("BedrockQueryOptimizationAdapter", () => {
     await client.optimizeQuery({ originalQuery: "Jリーグのチームを調べたい" });
     const last = invokedInputs.at(-1);
     const sent = JSON.parse(last.body);
-    const content: string = sent.messages?.[0]?.content as string;
-    expect(content).toContain("### TEMPORAL_CONTEXT");
-    expect(content).toContain("CURRENT_YEAR: 2025");
-    expect(content).toContain("RECENT_RANGE: 2023–2025");
+    const system: string = sent.system as string;
+    expect(system).toContain("### TEMPORAL_CONTEXT");
+    expect(system).toContain("CURRENT_YEAR: 2025");
+    expect(system).toContain("RECENT_RANGE: 2023–2025");
     vi.useRealTimers();
   });
 
@@ -166,10 +166,101 @@ describe("BedrockQueryOptimizationAdapter", () => {
     await client.optimizeQuery({ originalQuery: "Jリーグのチームを調べたい" });
     const last = invokedInputs.at(-1);
     const sent = JSON.parse(last.body);
-    const content: string = sent.messages?.[0]?.content as string;
-    expect(content).toContain("### EXPANSION_POLICY");
-    expect(content).toContain("MODE: minimal");
-    expect(content).toContain("過剰な拡張を禁止");
-    expect(content).toContain("追加観点は最大1件");
+    const system: string = sent.system as string;
+    expect(system).toContain("### EXPANSION_POLICY");
+    expect(system).toContain("MODE: minimal");
+    expect(system).toContain("過剰な拡張を禁止");
+    expect(system).toContain("追加観点は最大1件");
+  });
+
+  it("プロンプトがクエリを自然文として生成するよう要求する", async () => {
+    const client = new BedrockQueryOptimizationAdapter();
+    const payload = {
+      candidates: [
+        {
+          id: "candidate-1",
+          query: "test",
+          coverageScore: 0.5,
+          coverageExplanation: "",
+          addedAspects: [],
+          improvementReason: "",
+          suggestedFollowups: [],
+        },
+      ],
+    };
+    const body = new TextEncoder().encode(
+      JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
+    );
+    sendMock.mockResolvedValueOnce({ body });
+
+    await client.optimizeQuery({ originalQuery: "Jリーグのチームを調べたい" });
+    const last = invokedInputs.at(-1);
+    const sent = JSON.parse(last.body);
+    const system: string = sent.system as string;
+    const userPayload = JSON.parse(sent.messages?.[0]?.content as string);
+    expect(system).toContain("クエリは自然な文章として記述");
+    expect(system).toContain("文脈に沿った完結した文");
+    expect(system).toContain("### OUTPUT_STYLE");
+    expect(system).toContain(
+      "すべてのcandidate.queryは論文タイトルのような自然な名詞句で表現する",
+    );
+    expect(system).toContain(
+      "文頭で対象を明示し、文末は『〜の調査』『〜の比較』『〜の分析』などの体言止めで締める",
+    );
+    expect(system).toContain("断片的な語句（例: 'AI 安全性 動向 2025'）は禁止");
+    expect(system).toContain("### OUTPUT_EXAMPLES");
+    expect(system).toContain("入力例: Jリーグ 2025年 チーム一覧");
+    expect(system).toContain("適合例: 2025年のJリーグ所属チーム一覧の調査");
+    expect(system).toContain("不適合例: Jリーグ 2025 チーム一覧");
+    expect(userPayload.inputQuery).toBe("Jリーグのチームを調べたい");
+  });
+
+  it("DEBUG_QUERY_OPTIMIZATION_PROMPT環境変数が有効な場合、プロンプトをログ出力する", async () => {
+    const client = new BedrockQueryOptimizationAdapter();
+    const payload = {
+      candidates: [
+        {
+          id: "candidate-1",
+          query: "test",
+          coverageScore: 0.5,
+          coverageExplanation: "",
+          addedAspects: [],
+          improvementReason: "",
+          suggestedFollowups: [],
+        },
+      ],
+    };
+    const body = new TextEncoder().encode(
+      JSON.stringify({ content: [{ text: JSON.stringify(payload) }] }),
+    );
+    sendMock.mockResolvedValueOnce({ body });
+
+    const original = process.env.DEBUG_QUERY_OPTIMIZATION_PROMPT;
+    process.env.DEBUG_QUERY_OPTIMIZATION_PROMPT = "1";
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+
+    try {
+      await client.optimizeQuery({
+        originalQuery: "Jリーグのチームを調べたい",
+      });
+      expect(logSpy).toHaveBeenCalled();
+      const logged = logSpy.mock.calls
+        .map((args) => args[0])
+        .find(
+          (entry) =>
+            typeof entry === "string" &&
+            entry.includes("[QueryOptimizationPrompt]"),
+        );
+      expect(logged).toContain("SYSTEM:");
+      expect(logged).toContain("USER:");
+      expect(logged).toContain("Jリーグのチームを調べたい");
+    } finally {
+      logSpy.mockRestore();
+      if (original === undefined) {
+        delete process.env.DEBUG_QUERY_OPTIMIZATION_PROMPT;
+      } else {
+        process.env.DEBUG_QUERY_OPTIMIZATION_PROMPT = original;
+      }
+    }
   });
 });

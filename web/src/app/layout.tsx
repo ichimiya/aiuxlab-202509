@@ -5,6 +5,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
 import { WasmBackground } from "@/features/background/components/WasmBackground";
+import { AppWindow } from "@/features/voiceRecognition/components/AppWindow";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,8 +18,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "AI Research POC",
-  description: "AI時代の新しいリサーチ体験を探索する実験的POC",
+  title: "NOVA",
+  description:
+    "NOVA provides Network Oriented Visualized Analysis, enabling users to explore complex data relationships through intuitive network graphs and uncover hidden insights.",
 };
 
 export default function RootLayout({
@@ -33,9 +35,7 @@ export default function RootLayout({
       >
         <Providers>
           <WasmBackground />
-          <div className="wasm-stage">
-            <div className="wasm-stage-inner">{children}</div>
-          </div>
+          <AppWindow>{children}</AppWindow>
         </Providers>
       </body>
     </html>

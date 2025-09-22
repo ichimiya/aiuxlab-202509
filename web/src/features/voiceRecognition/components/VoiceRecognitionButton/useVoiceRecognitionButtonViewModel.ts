@@ -7,13 +7,19 @@ import {
   startTransition,
 } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
-import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
+import {
+  ListeningLifecycleStatus,
+  useVoiceRecognitionStore,
+} from "@/shared/stores/voiceRecognitionStore";
 import { createProcessVoiceCommandUseCase } from "@/shared/useCases/ProcessVoiceCommandUseCase/factory";
 import type { VoiceButtonState } from "../../types";
 import { voicePerf } from "@/shared/lib/voicePerf";
 
 const DEFAULT_DEVICE = "web";
 const FALLBACK_LOCALE = "ja-JP";
+
+const isTransitioning = (status: ListeningLifecycleStatus) =>
+  status === "starting" || status === "stopping";
 
 function getPreferredLocale(): string {
   if (typeof navigator !== "undefined" && navigator.language) {
@@ -52,12 +58,17 @@ export function useVoiceRecognitionButtonViewModel() {
     recordVoiceCommandResult,
   } = useResearchStore();
 
-  const isListening = useVoiceRecognitionStore((state) => state.isListening);
+  const listeningStatus = useVoiceRecognitionStore(
+    (state) => state.listeningStatus,
+  );
   const markListening = useVoiceRecognitionStore(
     (state) => state.startListening,
   );
   const markNotListening = useVoiceRecognitionStore(
     (state) => state.stopListening,
+  );
+  const setListeningStatus = useVoiceRecognitionStore(
+    (state) => state.setListeningStatus,
   );
   const setVoiceSessionId = useVoiceRecognitionStore(
     (state) => state.setSessionId,
@@ -181,176 +192,199 @@ export function useVoiceRecognitionButtonViewModel() {
   }, []);
 
   const buttonState: VoiceButtonState = useMemo(() => {
-    const disabled = !isSupported || !hasPermission;
+    const disabled =
+      !isSupported || !hasPermission || isTransitioning(listeningStatus);
+    const showActive = listeningStatus === "active";
+    const text = (() => {
+      switch (listeningStatus) {
+        case "starting":
+          return "接続中...";
+        case "stopping":
+          return "停止中...";
+        case "active":
+          return "停止";
+        default:
+          return "音声認識開始";
+      }
+    })();
     return {
-      text: isListening ? "停止" : "音声認識開始",
+      text,
       className: `px-4 py-2 rounded-md font-medium transition-colors ${
         disabled
           ? "bg-gray-400 text-gray-600 cursor-not-allowed"
-          : isListening
+          : showActive
             ? "bg-red-600 hover:bg-red-700 text-white"
             : "bg-green-600 hover:bg-green-700 text-white"
       }`,
       isDisabled: disabled,
-      showIcon: !isListening,
+      showIcon: !showActive,
     };
-  }, [isListening, isSupported, hasPermission]);
+  }, [hasPermission, isSupported, listeningStatus]);
 
   const handleToggleListening = useCallback(async () => {
     voicePerf.mark("ui.toggle.start");
-    if (isListening) {
+
+    const status = listeningStatus;
+    if (isTransitioning(status)) {
+      return;
+    }
+
+    if (status === "active") {
       try {
-        if (!voiceUseCase.isProcessing) {
-          markNotListening();
-          setResearchListening(false);
-          return;
-        }
+        setListeningStatus("stopping");
         await voiceUseCase.stopProcessing();
-        markNotListening();
-        setResearchListening(false);
         console.log("🎙️ 音声認識停止");
       } catch (error) {
         console.error("Failed to stop voice recognition:", error);
-      }
-    } else {
-      try {
-        console.log("🎙️ 音声認識開始...");
-        markListening();
-        setResearchListening(true);
-        chunkSeqRef.current = 0;
-        ensureSessionId();
-
-        voiceUseCase.setRealTimeEventHandlers({
-          onTranscriptionResult: (text: string, isFinal: boolean) => {
-            voicePerf.mark(isFinal ? "ui.result.final" : "ui.result.partial");
-            console.log("🎯 音声認識結果:", text, "Final:", isFinal);
-
-            if (isFinal) {
-              startTransition(() => {
-                setVoiceCommand(text);
-                setVoiceTranscript(text);
-                clearPartialTranscript();
-              });
-              voicePerf.mark("ui.state.updated");
-
-              const dispatchEvent = (
-                pattern?: string | null,
-                confidence = 0,
-              ) => {
-                void sendVoiceEvent({
-                  transcript: text,
-                  confidence,
-                  pattern: pattern ?? null,
-                });
-              };
-
-              defer(() => {
-                try {
-                  const parsedResult = voiceUseCase.analyzeTranscript(text);
-                  dispatchEvent(
-                    parsedResult.pattern,
-                    parsedResult.confidence ?? 0,
-                  );
-
-                  recordVoiceCommandResult({
-                    id: generateHistoryId(),
-                    originalText: text,
-                    recognizedPattern: parsedResult.pattern ?? undefined,
-                    confidence: parsedResult.confidence ?? 0,
-                    timestamp: new Date(),
-                    displayText: text,
-                  });
-
-                  if (
-                    parsedResult.pattern &&
-                    parsedResult.confidence > 0.5 &&
-                    autoStop
-                  ) {
-                    voicePerf.mark("ui.autostop.trigger");
-                    markNotListening();
-                    setResearchListening(false);
-                    if (voiceUseCase.isProcessing) {
-                      voiceUseCase
-                        .stopProcessing()
-                        .catch((err) =>
-                          console.error(
-                            "Failed to stop after recognition:",
-                            err,
-                          ),
-                        );
-                    }
-                  }
-                } catch (error) {
-                  console.warn("Voice command parsing failed", error);
-                  dispatchEvent(null, 0);
-                  recordVoiceCommandResult({
-                    id: generateHistoryId(),
-                    originalText: text,
-                    recognizedPattern: undefined,
-                    confidence: 0,
-                    timestamp: new Date(),
-                    displayText: text,
-                  });
-                }
-              });
-            } else {
-              console.log("📝 途中結果:", text);
-              setPartialTranscript(text);
-            }
-          },
-          onError: (error) => {
-            voicePerf.mark("ui.error");
-            console.error("AWS Transcribe Error:", error);
-            const isSilenceTimeout =
-              error.error === "network" &&
-              typeof error.message === "string" &&
-              error.message.toLowerCase().includes("no audio activity");
-
-            if (isSilenceTimeout && isListening) {
-              voiceUseCase
-                .stopProcessing()
-                .catch(() => void 0)
-                .then(() => voiceUseCase.startRealTimeTranscription())
-                .catch((err) => {
-                  console.error("Auto-reconnect failed:", err);
-                  markNotListening();
-                  setResearchListening(false);
-                });
-            } else {
-              markNotListening();
-              setResearchListening(false);
-              if (error.error === "transcription-failed") {
-                console.warn("🚨 音声認識エラー:", error.message);
-              } else if (error.error === "not-allowed") {
-                console.warn("🚨 マイク権限エラー:", error.message);
-              } else {
-                console.warn("🚨 音声認識サービスエラー:", error.message);
-              }
-            }
-          },
-          onConnectionStatusChange: (status) => {
-            voicePerf.mark(`ui.connection.${status}`);
-            console.log("🔗 接続状態変更:", status);
-          },
-        });
-
-        voicePerf.mark("ui.stt.start.call");
-        voiceUseCase.startRealTimeTranscription().catch((err) => {
-          console.error("Failed to start voice recognition:", err);
-          markNotListening();
-          setResearchListening(false);
-          clearPartialTranscript();
-        });
-      } catch (error) {
-        voicePerf.mark("ui.stt.start.error");
-        console.error("Failed to start voice recognition:", error);
+      } finally {
+        setListeningStatus("idle");
         markNotListening();
         setResearchListening(false);
         clearPartialTranscript();
       }
+      return;
+    }
+
+    try {
+      setListeningStatus("starting");
+      console.log("🎙️ 音声認識開始...");
+      chunkSeqRef.current = 0;
+      ensureSessionId();
+
+      voiceUseCase.setRealTimeEventHandlers({
+        onTranscriptionResult: (text: string, isFinal: boolean) => {
+          voicePerf.mark(isFinal ? "ui.result.final" : "ui.result.partial");
+          console.log("🎯 音声認識結果:", text, "Final:", isFinal);
+
+          if (isFinal) {
+            startTransition(() => {
+              setVoiceCommand(text);
+              setVoiceTranscript(text);
+              clearPartialTranscript();
+            });
+            voicePerf.mark("ui.state.updated");
+
+            const dispatchEvent = (pattern?: string | null, confidence = 0) => {
+              void sendVoiceEvent({
+                transcript: text,
+                confidence,
+                pattern: pattern ?? null,
+              });
+            };
+
+            defer(() => {
+              try {
+                const parsedResult = voiceUseCase.analyzeTranscript(text);
+                dispatchEvent(
+                  parsedResult.pattern,
+                  parsedResult.confidence ?? 0,
+                );
+
+                recordVoiceCommandResult({
+                  id: generateHistoryId(),
+                  originalText: text,
+                  recognizedPattern: parsedResult.pattern ?? undefined,
+                  confidence: parsedResult.confidence ?? 0,
+                  timestamp: new Date(),
+                  displayText: text,
+                });
+
+                if (
+                  parsedResult.pattern &&
+                  parsedResult.confidence > 0.5 &&
+                  autoStop
+                ) {
+                  voicePerf.mark("ui.autostop.trigger");
+                  markNotListening();
+                  setListeningStatus("idle");
+                  setResearchListening(false);
+                  if (voiceUseCase.isProcessing) {
+                    voiceUseCase
+                      .stopProcessing()
+                      .catch((err) =>
+                        console.error("Failed to stop after recognition:", err),
+                      );
+                  }
+                }
+              } catch (error) {
+                console.warn("Voice command parsing failed", error);
+                dispatchEvent(null, 0);
+                recordVoiceCommandResult({
+                  id: generateHistoryId(),
+                  originalText: text,
+                  recognizedPattern: undefined,
+                  confidence: 0,
+                  timestamp: new Date(),
+                  displayText: text,
+                });
+              }
+            });
+          } else {
+            console.log("📝 途中結果:", text);
+            setPartialTranscript(text);
+          }
+        },
+        onError: (error) => {
+          voicePerf.mark("ui.error");
+          console.error("AWS Transcribe Error:", error);
+          const isSilenceTimeout =
+            error.error === "network" &&
+            typeof error.message === "string" &&
+            error.message.toLowerCase().includes("no audio activity");
+
+          if (
+            isSilenceTimeout &&
+            useVoiceRecognitionStore.getState().isListening
+          ) {
+            voiceUseCase
+              .stopProcessing()
+              .catch(() => void 0)
+              .then(() => voiceUseCase.startRealTimeTranscription())
+              .catch((err) => {
+                console.error("Auto-reconnect failed:", err);
+                setListeningStatus("idle");
+                markNotListening();
+                setResearchListening(false);
+              });
+          } else {
+            setListeningStatus("idle");
+            markNotListening();
+            setResearchListening(false);
+            if (error.error === "transcription-failed") {
+              console.warn("🚨 音声認識エラー:", error.message);
+            } else if (error.error === "not-allowed") {
+              console.warn("🚨 マイク権限エラー:", error.message);
+            } else {
+              console.warn("🚨 音声認識サービスエラー:", error.message);
+            }
+          }
+        },
+        onConnectionStatusChange: (status) => {
+          voicePerf.mark(`ui.connection.${status}`);
+          console.log("🔗 接続状態変更:", status);
+        },
+      });
+
+      voicePerf.mark("ui.stt.start.call");
+      await voiceUseCase.startRealTimeTranscription();
+      setListeningStatus("active");
+      markListening();
+      setResearchListening(true);
+    } catch (error) {
+      voicePerf.mark("ui.stt.start.error");
+      console.error("Failed to start voice recognition:", error);
+      setListeningStatus("idle");
+      markNotListening();
+      setResearchListening(false);
+      clearPartialTranscript();
+      try {
+        await voiceUseCase.stopProcessing();
+      } catch (stopError) {
+        console.error("Failed to cleanup after start error:", stopError);
+      }
     }
   }, [
-    isListening,
+    listeningStatus,
     voiceUseCase,
     markListening,
     markNotListening,
@@ -364,6 +398,7 @@ export function useVoiceRecognitionButtonViewModel() {
     ensureSessionId,
     sendVoiceEvent,
     recordVoiceCommandResult,
+    setListeningStatus,
   ]);
 
   const requestPermission = useCallback(async () => {

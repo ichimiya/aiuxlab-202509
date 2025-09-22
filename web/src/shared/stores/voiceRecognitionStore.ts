@@ -40,6 +40,7 @@ export interface VoiceRecognitionViewState {
   reconnectAttempt: number;
   isSseConnected: boolean;
   isListening: boolean;
+  listeningStatus: ListeningLifecycleStatus;
 }
 
 export interface VoiceRecognitionActions {
@@ -55,11 +56,19 @@ export interface VoiceRecognitionActions {
   resetReconnectAttempt: () => void;
   startListening: () => void;
   stopListening: () => void;
+  setListeningStatus: (status: ListeningLifecycleStatus) => void;
   reset: () => void;
 }
 
 type VoiceRecognitionStore = VoiceRecognitionViewState &
   VoiceRecognitionActions;
+
+export type ListeningLifecycleStatus =
+  | "idle"
+  | "starting"
+  | "active"
+  | "stopping"
+  | "error";
 
 const initialState: VoiceRecognitionViewState = {
   sessionId: null,
@@ -69,6 +78,7 @@ const initialState: VoiceRecognitionViewState = {
   reconnectAttempt: 0,
   isSseConnected: false,
   isListening: false,
+  listeningStatus: "idle",
 };
 
 export const useVoiceRecognitionStore = create<VoiceRecognitionStore>()(
@@ -204,6 +214,7 @@ export const useVoiceRecognitionStore = create<VoiceRecognitionStore>()(
           (state) => ({
             ...state,
             isListening: true,
+            listeningStatus: "active",
           }),
           false,
           "startListening",
@@ -214,9 +225,26 @@ export const useVoiceRecognitionStore = create<VoiceRecognitionStore>()(
           (state) => ({
             ...state,
             isListening: false,
+            listeningStatus: "idle",
           }),
           false,
           "stopListening",
+        ),
+
+      setListeningStatus: (status) =>
+        set(
+          (state) => ({
+            ...state,
+            listeningStatus: status,
+            isListening:
+              status === "active"
+                ? true
+                : status === "idle" || status === "error"
+                  ? false
+                  : state.isListening,
+          }),
+          false,
+          "setListeningStatus",
         ),
 
       reset: () => set(initialState, false, "reset"),

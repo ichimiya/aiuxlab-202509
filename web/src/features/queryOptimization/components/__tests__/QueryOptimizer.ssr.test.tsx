@@ -18,6 +18,12 @@ vi.mock(
   }),
 );
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}));
+
 describe("QueryOptimizer", () => {
   test("SSRで無限ループを起こさずにレンダーできる", () => {
     const render = () => renderToString(<QueryOptimizer />);

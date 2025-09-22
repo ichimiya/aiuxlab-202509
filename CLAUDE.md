@@ -1,8 +1,8 @@
-# AI Research POC - Claude Code設定
+# NOVA - Claude Code設定
 
 ## プロジェクト概要
 
-AI時代の新しいリサーチ体験を探索する実験的POC
+NOVA provides Network Oriented Visualized Analysis, enabling users to explore complex data relationships through intuitive network graphs and uncover hidden insights.
 
 ## ドキュメント
 

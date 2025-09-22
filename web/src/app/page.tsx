@@ -1,20 +1,25 @@
-import React from "react";
-import { ResearchInterface } from "@/features/research/components/ResearchInterface";
+"use client";
+
 import { QueryOptimizer } from "@/features/queryOptimization/components/QueryOptimizer";
+import { useVoiceRecognitionStore } from "@/shared/stores/voiceRecognitionStore";
 
 export default function Home() {
-  return (
-    <div className="grid grid-cols-3">
-      {/* Research Interface */}
-      <div className="w-full space-y-6">
-        <ResearchInterface />
-      </div>
+  const listeningStatus = useVoiceRecognitionStore(
+    (state) => state.listeningStatus,
+  );
+  const sessionStatus = useVoiceRecognitionStore(
+    (state) => state.sessionState?.status,
+  );
 
-      {/* Query Optimization */}
-      <div className="w-full space-y-6">
-        <h2 className="text-xl font-semibold">クエリ最適化</h2>
-        <QueryOptimizer />
-      </div>
-    </div>
+  const shouldShowContent = listeningStatus !== "idle" || !!sessionStatus;
+
+  if (!shouldShowContent) {
+    return null;
+  }
+
+  return (
+    <main className="w-full max-w-4xl">
+      <QueryOptimizer />
+    </main>
   );
 }

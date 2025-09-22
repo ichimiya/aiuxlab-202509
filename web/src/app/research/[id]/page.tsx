@@ -21,7 +21,8 @@ export async function generateStaticParams() {
 export async function generateMetadata({ params }: ResearchPageProps) {
   const { id } = await params;
   return {
-    title: `Research ${id} - AI Research POC`,
-    description: `Detailed view of research ${id}`,
+    title: `Research ${id} - NOVA`,
+    description:
+      "Deep dive into NOVA's Network Oriented Visualized Analysis results for this research.",
   };
 }
