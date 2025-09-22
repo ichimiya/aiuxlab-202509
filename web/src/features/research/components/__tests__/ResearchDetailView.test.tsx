@@ -12,6 +12,7 @@ const connectMock = vi.fn();
 const disconnectMock = vi.fn();
 const reconnectMock = vi.fn();
 const applyEventMock = vi.fn();
+const setPhaseOverrideMock = vi.fn();
 
 const baseSnapshot: ResearchSnapshot = {
   id: "research-uuid",
@@ -46,6 +47,16 @@ vi.mock("@/shared/stores/researchDetailStore", () => ({
   ),
 }));
 
+vi.mock("@/features/voiceRecognition/stores/appWindowLayoutStore", () => ({
+  useAppWindowLayoutStore: vi.fn(
+    (
+      selector: (state: {
+        setPhaseOverride: typeof setPhaseOverrideMock;
+      }) => unknown,
+    ) => selector({ setPhaseOverride: setPhaseOverrideMock }),
+  ),
+}));
+
 vi.mock("next/link", () => ({
   __esModule: true,
   default: ({
@@ -63,6 +74,7 @@ describe("ResearchDetailView", () => {
     disconnectMock.mockReset();
     reconnectMock.mockReset();
     applyEventMock.mockReset();
+    setPhaseOverrideMock.mockReset();
     state.snapshots[baseSnapshot.id] = { ...baseSnapshot };
     state.connections[baseSnapshot.id] = {
       status: "open",
@@ -72,12 +84,18 @@ describe("ResearchDetailView", () => {
     global.fetch = vi.fn().mockResolvedValue({ ok: true });
   });
 
-  it("mount時にconnectを呼び出し、アンマウントでdisconnectする", () => {
+  it("mount時にconnectとresearchフェーズ固定を実行し、アンマウントで解除する", async () => {
     const { unmount } = render(<ResearchDetailView id="research-uuid" />);
+
     expect(connectMock).toHaveBeenCalledWith("research-uuid");
+
+    await waitFor(() => {
+      expect(setPhaseOverrideMock).toHaveBeenCalledWith("research");
+    });
 
     unmount();
     expect(disconnectMock).toHaveBeenCalledWith("research-uuid");
+    expect(setPhaseOverrideMock).toHaveBeenLastCalledWith(null);
   });
 
   it("スナップショット情報と結果を表示する", () => {
@@ -107,6 +125,37 @@ describe("ResearchDetailView", () => {
     expect(screen.getByText("Redis Streams allow fan-out")).toBeInTheDocument();
     expect(screen.getByText("Redis Streams Overview")).toBeInTheDocument();
     expect(screen.getByText(/ステータス: 完了/)).toBeInTheDocument();
+  });
+
+  it("セクション単位で主要情報を表示する", () => {
+    state.snapshots[baseSnapshot.id] = {
+      ...baseSnapshot,
+      status: "completed",
+      revision: 2,
+      results: [
+        {
+          id: "result-1",
+          content: "Redis Streams allow fan-out",
+          source: "perplexity",
+          relevanceScore: 0.92,
+        },
+      ],
+      searchResults: [
+        {
+          id: "search-1",
+          title: "Redis Streams Overview",
+          url: "https://redis.io",
+          snippet: "Redis Streams provide append-only log...",
+        } as ResearchSnapshot["searchResults"][number],
+      ],
+    } as ResearchSnapshot;
+
+    render(<ResearchDetailView id="research-uuid" />);
+
+    expect(screen.getByTestId("metadata-section")).toBeInTheDocument();
+    expect(screen.getByTestId("actions-section")).toBeInTheDocument();
+    expect(screen.getByTestId("results-section")).toBeInTheDocument();
+    expect(screen.getByTestId("search-results-section")).toBeInTheDocument();
   });
 
   it("追いリサーチボタンでAPIを呼び出し、再接続する", async () => {

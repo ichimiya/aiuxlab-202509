@@ -1,11 +1,13 @@
 import React from "react";
 import type { OptimizationCandidate } from "@/shared/api/generated/models";
 
+const CARD_ROW_TRACK_COUNT = 5;
+
 type Props = {
   candidates: OptimizationCandidate[];
-  evaluationSummary?: string;
   selectedCandidateId?: string;
-  onSelect?: (candidateId: string) => void;
+  onSelect?: (candidateId: string | null) => void;
+  onStartResearch?: (candidate: OptimizationCandidate) => void;
 };
 
 function formatCoverage(score: number): string {
@@ -14,77 +16,95 @@ function formatCoverage(score: number): string {
 
 export function OptimizationSuggestions({
   candidates,
-  evaluationSummary,
   selectedCandidateId,
   onSelect,
+  onStartResearch,
 }: Props) {
+  const glassBackground =
+    "color-mix(in srgb, var(--background) 20%, transparent)";
+
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div
+        className="grid grid-cols-1 md:grid-cols-3 gap-3 overflow-visible auto-rows-auto"
+        style={{
+          gridTemplateRows: `repeat(${CARD_ROW_TRACK_COUNT}, minmax(0, auto))`,
+        }}
+      >
         {candidates.map((candidate, index) => {
           const isSelected = candidate.id === selectedCandidateId;
           return (
             <button
               key={candidate.id}
               type="button"
-              onClick={() => onSelect?.(candidate.id)}
+              onMouseEnter={(event) => {
+                event.currentTarget.focus({ preventScroll: true });
+              }}
+              onMouseLeave={(event) => {
+                event.currentTarget.blur();
+              }}
+              onFocus={() => onSelect?.(candidate.id)}
+              onBlur={() => onSelect?.(null)}
+              onClick={() => onStartResearch?.(candidate)}
               aria-pressed={isSelected}
-              className={`text-left p-4 rounded-lg border transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+              data-layout="subgrid"
+              className={`grid grid-rows-[subgrid] content-start gap-2 text-left p-4 rounded-xl border transition-colors focus:outline-none focus:border-blue-300/60 backdrop-blur-lg ${
                 isSelected
-                  ? "border-blue-500 bg-blue-50"
-                  : "border-gray-200 hover:border-blue-400"
+                  ? "border-blue-300/60 shadow-[0_0_22px_rgba(147,197,253,0.26)]"
+                  : "border-white/10 hover:border-blue-300/60"
               }`}
+              style={{
+                backgroundColor: glassBackground,
+                gridRow: `span ${CARD_ROW_TRACK_COUNT}`,
+              }}
             >
-              <div className="flex items-center justify-between text-sm font-medium text-gray-600">
+              <div className="flex items-center justify-between text-sm font-medium row-start-1 row-span-1">
                 <span>{`候補${index + 1}`}</span>
-                <span className="text-blue-600 font-semibold">
+                <span className="font-semibold">
                   {formatCoverage(candidate.coverageScore)}
                 </span>
               </div>
-              <p className="mt-2 text-sm font-semibold text-gray-900">
+              <p className="text-blue-100 text-md font-semibold row-start-2 row-span-1">
                 {candidate.query}
               </p>
-              <p className="mt-2 text-xs text-gray-600">
+              <p className="text-xs text-blue-300/80 row-start-3 row-span-1">
                 {candidate.coverageExplanation}
               </p>
 
               {candidate.addedAspects && candidate.addedAspects.length > 0 && (
-                <div className="mt-3">
-                  <h4 className="text-xs font-semibold text-gray-500">
-                    追加観点
-                  </h4>
-                  <ul className="mt-1 text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                <div className="flex flex-col gap-1 text-xs row-start-4 row-span-1">
+                  <h4 className="font-semibold">追加観点</h4>
+                  <ul className="list-disc list-inside space-y-0.5">
                     {candidate.addedAspects.map((aspect) => (
                       <li key={aspect}>{aspect}</li>
                     ))}
                   </ul>
                 </div>
               )}
+              {(!candidate.addedAspects ||
+                candidate.addedAspects.length === 0) && (
+                <div className="row-start-4 row-span-1" aria-hidden="true" />
+              )}
 
               {candidate.suggestedFollowups &&
                 candidate.suggestedFollowups.length > 0 && (
-                  <div className="mt-3">
-                    <h4 className="text-xs font-semibold text-gray-500">
-                      推奨追加調査
-                    </h4>
-                    <ul className="mt-1 text-xs text-gray-700 list-disc list-inside space-y-0.5">
+                  <div className="flex flex-col gap-1 text-xs row-start-5 row-span-1">
+                    <h4 className="font-semibold">推奨追加調査</h4>
+                    <ul className="list-disc list-inside space-y-0.5">
                       {candidate.suggestedFollowups.map((item) => (
                         <li key={item}>{item}</li>
                       ))}
                     </ul>
                   </div>
                 )}
+              {(!candidate.suggestedFollowups ||
+                candidate.suggestedFollowups.length === 0) && (
+                <div className="row-start-5 row-span-1" aria-hidden="true" />
+              )}
             </button>
           );
         })}
       </div>
-
-      {evaluationSummary && (
-        <section className="p-4 rounded-lg bg-gray-50 border border-gray-200">
-          <h3 className="font-medium mb-1">全体サマリー</h3>
-          <p className="text-sm text-gray-700">{evaluationSummary}</p>
-        </section>
-      )}
     </div>
   );
 }
