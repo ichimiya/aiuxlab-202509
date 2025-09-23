@@ -79,6 +79,7 @@ describe("ProcessResearchJob", () => {
         {
           id: "research-uuid",
           content: "Redis Streams allow fan-out consumption",
+          htmlContent: "<p>Redis Streams allow fan-out consumption</p>",
           source: "perplexity",
           relevanceScore: 1,
         },
@@ -96,6 +97,7 @@ describe("ProcessResearchJob", () => {
         {
           id: "research-uuid",
           content: "Redis Streams allow fan-out consumption",
+          htmlContent: "<p>Redis Streams allow fan-out consumption</p>",
           source: "perplexity",
           relevanceScore: 1,
         },

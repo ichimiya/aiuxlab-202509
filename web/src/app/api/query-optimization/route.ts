@@ -53,8 +53,17 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const researchHistoryWithHtml = rest.researchHistory?.map((history) => ({
+      ...history,
+      results: history.results?.map((result) => ({
+        ...result,
+        htmlContent: result.htmlContent ?? result.content ?? "",
+      })),
+    }));
+
     const normalized: QueryOptimizationRequest = {
       ...rest,
+      researchHistory: researchHistoryWithHtml,
       voiceTranscript:
         typeof voiceTranscript === "string" && voiceTranscript.trim()
           ? voiceTranscript.trim()

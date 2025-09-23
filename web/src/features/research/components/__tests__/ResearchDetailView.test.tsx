@@ -124,7 +124,10 @@ describe("ResearchDetailView", () => {
 
     expect(screen.getByText("Redis Streams allow fan-out")).toBeInTheDocument();
     expect(screen.getByText("Redis Streams Overview")).toBeInTheDocument();
-    expect(screen.getByText(/ステータス: 完了/)).toBeInTheDocument();
+
+    const metadata = screen.getByTestId("metadata-section");
+    expect(metadata).toHaveTextContent("Status");
+    expect(metadata).toHaveTextContent("Completed");
   });
 
   it("セクション単位で主要情報を表示する", () => {

@@ -309,6 +309,7 @@ components:
       required:
         - id
         - content
+        - htmlContent
         - source
       properties:
         id:
@@ -317,6 +318,9 @@ components:
         content:
           type: string
           description: HTML化されたリサーチ結果内容
+        htmlContent:
+          type: string
+          description: サニタイズ済みHTMLコンテンツ
         source:
           type: string
           description: 情報源
@@ -394,12 +398,15 @@ components:
       required:
         - id
         - content
+        - htmlContent
         - source
         - relevanceScore
       properties:
         id:
           type: string
         content:
+          type: string
+        htmlContent:
           type: string
         source:
           type: string

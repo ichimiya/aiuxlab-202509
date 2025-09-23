@@ -36,10 +36,10 @@ describe("ResearchDomainService (Domain Layer)", () => {
         searchResults,
       );
 
-      // 見出しやリストがHTMLになっている
-      expect(result.htmlContent).toContain("<h1>タイトル</h1>");
-      expect(result.htmlContent).toContain("<ul>");
-      expect(result.htmlContent).toContain("<li>項目1</li>");
+      // 見出しやリストがHTMLになっている（ID付与後もマッチ）
+      expect(result.htmlContent).toMatch(/<h1[^>]*>タイトル<\/h1>/);
+      expect(result.htmlContent).toMatch(/<ul[^>]*>/);
+      expect(result.htmlContent).toMatch(/<li[^>]*>項目1<\/li>/);
 
       // 引用番号のリンク化
       expect(result.htmlContent).toContain('href="#ref1"');
@@ -59,6 +59,38 @@ describe("ResearchDomainService (Domain Layer)", () => {
           }),
         ]),
       );
+    });
+
+    it("生成したHTMLの要素に一意なID属性を付与する", async () => {
+      service = new ResearchDomainService();
+
+      const markdown = [
+        "# 見出し",
+        "",
+        "本文テキスト",
+        "",
+        "- 項目A",
+        "- 項目B",
+      ].join("\n");
+
+      const { htmlContent } = await service.processContent(markdown, [], []);
+
+      const { JSDOM } = await import("jsdom");
+      const { document } = new JSDOM(`<article>${htmlContent}</article>`)
+        .window;
+
+      const elements = Array.from(
+        document.querySelectorAll("h1, p, ul, li"),
+      ) as HTMLElement[];
+
+      const uuidRegex =
+        /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+      const ids = elements.map((element) => element.getAttribute("id"));
+
+      expect(
+        ids.every((id) => typeof id === "string" && uuidRegex.test(id!)),
+      ).toBe(true);
+      expect(new Set(ids).size).toBe(ids.length);
     });
   });
   describe("transformToResearch", () => {

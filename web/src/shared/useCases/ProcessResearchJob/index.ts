@@ -143,6 +143,7 @@ function mapResultsToSnapshot(
   return results.map((result) => ({
     id: result.id,
     content: result.content,
+    htmlContent: result.htmlContent,
     source: result.source,
     relevanceScore: result.relevanceScore ?? 1,
     processedCitations: result.processedCitations?.map((citation) => ({

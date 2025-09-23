@@ -14,6 +14,21 @@ export interface TextSelectionProviderViewModel {
   clearSelection: () => void;
 }
 
+const SELECTION_SCOPE_SELECTOR = '[data-selection-scope="research-results"]';
+
+function isRangeWithinAllowedScope(range: Range): boolean {
+  if (typeof document === "undefined") return true;
+  const scopeElements = Array.from(
+    document.querySelectorAll(SELECTION_SCOPE_SELECTOR),
+  );
+  if (scopeElements.length === 0) return true;
+  return scopeElements.some(
+    (element) =>
+      element.contains(range.startContainer) &&
+      element.contains(range.endContainer),
+  );
+}
+
 export function useTextSelectionProviderViewModel(): TextSelectionProviderViewModel {
   const selectedText = useResearchStore((s) => s.selectedText);
   const setTextSelection = useResearchStore((s) => s.setTextSelection);
@@ -27,20 +42,21 @@ export function useTextSelectionProviderViewModel(): TextSelectionProviderViewMo
     try {
       const sel = window.getSelection();
       if (!sel || sel.rangeCount === 0) {
-        clearTextSelection();
         return;
       }
 
       const rawRange = sel.getRangeAt(0);
       if (rawRange.collapsed) {
-        clearTextSelection();
+        return;
+      }
+
+      if (!isRangeWithinAllowedScope(rawRange)) {
         return;
       }
 
       const selected = sel.toString().trim();
       const validation = textSelectionModel.validateSelection(selected);
       if (!validation.isValid) {
-        clearTextSelection();
         return;
       }
 

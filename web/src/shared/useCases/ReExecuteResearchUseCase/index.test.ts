@@ -20,6 +20,7 @@ describe("ReExecuteResearchUseCase", () => {
         {
           id: "research-uuid",
           content: "Redis Streams analysis",
+          htmlContent: "<p>Redis Streams analysis</p>",
           source: "perplexity",
           relevanceScore: 1,
         },

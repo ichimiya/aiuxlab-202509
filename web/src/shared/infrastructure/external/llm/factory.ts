@@ -10,6 +10,12 @@ import type {
   VoiceIntentClassifierPort,
   VoiceIntentResult,
 } from "@/shared/useCases/ports/voice";
+import type {
+  SelectionInsightPort,
+  SelectionInsightRequest,
+  SelectionInsightResult,
+} from "@/shared/useCases/ports/selectionInsights";
+import { BedrockSelectionInsightAdapter } from "@/shared/adapters/llm/bedrock/selectionInsightAdapter";
 
 function provider(): string {
   return (process.env.LLM_PROVIDER || "bedrock").toLowerCase();
@@ -87,4 +93,32 @@ export function createVoiceIntentClassifier(): VoiceIntentClassifierPort {
     return fallback;
   }
   return new BedrockVoiceIntentClassifierAdapter({});
+}
+
+export function createSelectionInsightAdapter(): SelectionInsightPort {
+  const p = provider();
+  if (p === "vertex") {
+    const fallback: SelectionInsightPort = {
+      async generate(
+        request: SelectionInsightRequest,
+      ): Promise<SelectionInsightResult> {
+        const trimmed = request.selection.text.trim();
+        return {
+          summary: trimmed,
+          insights: [
+            {
+              id: "topic-1",
+              title: "補足観点",
+              summary: trimmed,
+              keyPoints: [],
+              recommendedSources: [],
+            },
+          ],
+          generatedAt: new Date().toISOString(),
+        };
+      },
+    };
+    return fallback;
+  }
+  return new BedrockSelectionInsightAdapter({});
 }

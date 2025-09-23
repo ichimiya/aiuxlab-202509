@@ -17,18 +17,33 @@ import type {
 } from "../../infrastructure/external/search/types";
 import type { ContentProcessingPort } from "../../useCases/ports/contentProcessing";
 
-// DOMPurifyの初期化（環境に応じて分岐）
+type JSDOMConstructor = typeof import("jsdom").JSDOM;
+
 let purify: typeof DOMPurify;
+let NodeJSDOM: JSDOMConstructor | null = null;
+let nodeRandomUUID: (() => string) | null = null;
+
 if (typeof window !== "undefined") {
-  // ブラウザ環境
   purify = DOMPurify;
 } else {
-  // Node.js環境
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const { JSDOM } = require("jsdom");
+  NodeJSDOM = JSDOM;
   const window = new JSDOM("").window;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   purify = DOMPurify(window as any);
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { randomUUID } = require("crypto") as {
+      randomUUID?: () => string;
+    };
+    if (typeof randomUUID === "function") {
+      nodeRandomUUID = randomUUID;
+    }
+  } catch {
+    nodeRandomUUID = null;
+  }
 }
 
 // ========================================
@@ -129,6 +144,7 @@ export class ResearchDomainService {
     return {
       id: context.researchId || `research-${Date.now()}`,
       content: content,
+      htmlContent: "",
       source: "perplexity",
       relevanceScore: 1.0,
       processedCitations: citations.map((url, index) => ({
@@ -198,7 +214,7 @@ export class ResearchDomainService {
 
           return {
             ...result,
-            content: processedContent.htmlContent,
+            htmlContent: processedContent.htmlContent,
             processedCitations: processedContent.processedCitations,
           };
         }),
@@ -236,14 +252,30 @@ export class ResearchDomainService {
         searchResults,
       });
 
+      const htmlCandidate = extractHtmlContentCandidate(output.htmlContent);
+
+      if (!htmlCandidate) {
+        const fallback = this.fallbackProcessing(
+          markdownContent,
+          citations,
+          searchResults,
+        );
+
+        return {
+          htmlContent: fallback.htmlContent,
+          processedCitations:
+            output.processedCitations && output.processedCitations.length > 0
+              ? output.processedCitations
+              : fallback.processedCitations,
+        };
+      }
+
       // 2. HTMLをサニタイズ（セマンティック要素を許可）
-      const sanitizedHtml = purify.sanitize(
-        output.htmlContent,
-        SANITIZE_OPTIONS,
-      );
+      const sanitizedHtml = purify.sanitize(htmlCandidate, SANITIZE_OPTIONS);
+      const normalizedHtml = normalizeHtmlAttributes(sanitizedHtml);
 
       return {
-        htmlContent: sanitizedHtml,
+        htmlContent: ensureElementIds(normalizedHtml),
         processedCitations: output.processedCitations,
       };
     } catch (error) {
@@ -359,9 +391,10 @@ export class ResearchDomainService {
 
     // 3) サニタイズ（LLM経路と同等の許可リスト）
     const sanitizedHtml = purify.sanitize(htmlContent, SANITIZE_OPTIONS);
+    const normalizedHtml = normalizeHtmlAttributes(sanitizedHtml);
 
     return {
-      htmlContent: sanitizedHtml,
+      htmlContent: ensureElementIds(normalizedHtml),
       processedCitations,
     };
   }
@@ -405,3 +438,153 @@ const SANITIZE_OPTIONS = {
   ],
   ALLOWED_ATTR: ["href", "id", "target", "rel"],
 };
+
+function extractHtmlContentCandidate(value: unknown): string | null {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const trimmed = value.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const codeBlockMatch = trimmed.match(JSON_CODE_BLOCK_REGEX);
+  if (codeBlockMatch) {
+    const parsedFromCodeBlock = parseHtmlContentFromJson(codeBlockMatch[1]);
+    if (parsedFromCodeBlock) {
+      return parsedFromCodeBlock;
+    }
+  }
+
+  const parsed = parseHtmlContentFromJson(trimmed);
+  if (parsed) {
+    return parsed;
+  }
+
+  if (trimmed.startsWith("<")) {
+    return trimmed;
+  }
+
+  return null;
+}
+
+function parseHtmlContentFromJson(payload: string): string | null {
+  try {
+    const parsed = JSON.parse(payload) as { htmlContent?: unknown } | null;
+    if (parsed && typeof parsed.htmlContent === "string") {
+      const html = parsed.htmlContent.trim();
+      if (html) {
+        return html;
+      }
+    }
+  } catch {
+    const looseHtml = extractHtmlContentFromLooseJson(payload);
+    if (looseHtml) {
+      return looseHtml;
+    }
+  }
+
+  return null;
+}
+
+function extractHtmlContentFromLooseJson(value: string): string | null {
+  const match = value.match(HTML_CONTENT_VALUE_REGEX);
+  if (!match) {
+    return null;
+  }
+
+  const unescaped = unescapeJsonString(match[1]);
+
+  return unescaped.trim() ? unescaped : null;
+}
+
+function unescapeJsonString(value: string): string {
+  return value
+    .replace(/\\u([0-9a-fA-F]{4})/g, (_, hex: string) =>
+      String.fromCharCode(parseInt(hex, 16)),
+    )
+    .replace(/\\n/g, "\n")
+    .replace(/\\r/g, "\r")
+    .replace(/\\t/g, "\t")
+    .replace(/\\f/g, "\f")
+    .replace(/\\b/g, "\b")
+    .replace(/\\\//g, "/")
+    .replace(/\\\\/g, "\\")
+    .replace(/\\"/g, '"')
+    .replace(/\\&/g, "&");
+}
+
+function normalizeHtmlAttributes(value: string): string {
+  return value.replace(
+    /(href|src)=("|')&quot;([^"']+)&quot;\2/gi,
+    (_match: string, attr: string, quote: string, url: string) =>
+      `${attr}=${quote}${url}${quote}`,
+  );
+}
+
+const JSON_CODE_BLOCK_REGEX = /```json\s*([\s\S]*?)\s*```/i;
+const HTML_CONTENT_VALUE_REGEX = /"htmlContent"\s*:\s*"((?:\\.|[^"\\])*)"/i;
+
+function ensureElementIds(value: string): string {
+  if (!value.trim()) {
+    return value;
+  }
+
+  let document: Document | null = null;
+
+  if (typeof window !== "undefined" && window.document?.implementation) {
+    const doc = window.document.implementation.createHTMLDocument("");
+    doc.body.innerHTML = value;
+    document = doc;
+  } else if (NodeJSDOM) {
+    const dom = new NodeJSDOM(`<body>${value}</body>`);
+    document = dom.window.document;
+  }
+
+  if (!document) {
+    return value;
+  }
+
+  const usedIds = new Set<string>();
+  document.querySelectorAll("[id]").forEach((element) => {
+    const id = element.getAttribute("id");
+    if (id) {
+      usedIds.add(id);
+    }
+  });
+
+  document.querySelectorAll<HTMLElement>("*").forEach((element) => {
+    if (element.id) {
+      return;
+    }
+    const newId = createUniqueId(usedIds);
+    element.id = newId;
+    usedIds.add(newId);
+  });
+
+  return document.body.innerHTML;
+}
+
+function createUniqueId(usedIds: Set<string>): string {
+  let candidate: string;
+  do {
+    candidate = generateUuid();
+  } while (usedIds.has(candidate));
+  return candidate;
+}
+
+function generateUuid(): string {
+  if (
+    typeof globalThis.crypto !== "undefined" &&
+    typeof globalThis.crypto.randomUUID === "function"
+  ) {
+    return globalThis.crypto.randomUUID();
+  }
+
+  if (nodeRandomUUID) {
+    return nodeRandomUUID();
+  }
+
+  return `uuid-${Math.random().toString(16).slice(2, 10)}-${Date.now().toString(16)}`;
+}

@@ -39,6 +39,7 @@ export const getResearchSnapshotResponse = zod.object({
       zod.object({
         id: zod.string(),
         content: zod.string(),
+        htmlContent: zod.string(),
         source: zod.string(),
         relevanceScore: zod.number(),
         processedCitations: zod
@@ -137,6 +138,9 @@ export const optimizeQueryBody = zod.object({
             zod.object({
               id: zod.string().describe("結果ID"),
               content: zod.string().describe("HTML化されたリサーチ結果内容"),
+              htmlContent: zod
+                .string()
+                .describe("サニタイズ済みHTMLコンテンツ"),
               source: zod.string().describe("情報源"),
               relevanceScore: zod.number().optional().describe("関連度スコア"),
               voicePattern: zod

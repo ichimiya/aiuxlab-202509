@@ -213,6 +213,7 @@ describe("researchDetailStore", () => {
           {
             id: "result-1",
             content: "content",
+            htmlContent: "<p>content</p>",
             relevanceScore: 0.5,
             source: "perplexity",
           },

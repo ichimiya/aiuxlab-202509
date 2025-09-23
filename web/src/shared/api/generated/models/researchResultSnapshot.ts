@@ -10,6 +10,7 @@ import type { ProcessedCitationSnapshot } from "./processedCitationSnapshot";
 export interface ResearchResultSnapshot {
   id: string;
   content: string;
+  htmlContent: string;
   source: string;
   relevanceScore: number;
   /** @nullable */

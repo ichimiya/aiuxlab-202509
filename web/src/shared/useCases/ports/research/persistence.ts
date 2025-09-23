@@ -9,6 +9,7 @@ export type ResearchEventType =
 export interface ResearchResultSnapshot {
   id: string;
   content: string;
+  htmlContent: string;
   source: string;
   relevanceScore: number;
   processedCitations?: Array<{
