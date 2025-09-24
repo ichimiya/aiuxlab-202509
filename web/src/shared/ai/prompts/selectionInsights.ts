@@ -6,12 +6,14 @@ interface BuildSelectionInsightTopicPromptInput {
   researchId: string;
   selection: TextSelection;
   requestedTopics?: number;
+  researchQuery?: string;
 }
 
 interface BuildSelectionInsightExpansionPromptInput {
   researchId: string;
   selection: TextSelection;
   topics: SelectionInsightTopic[];
+  researchQuery?: string;
 }
 
 function formatMetadata(selection: TextSelection): string[] {
@@ -33,6 +35,7 @@ export function buildSelectionInsightTopicPrompt({
   researchId,
   selection,
   requestedTopics = 3,
+  researchQuery,
 }: BuildSelectionInsightTopicPromptInput): string {
   const schema = [
     '  "topics": Array<{',
@@ -56,6 +59,19 @@ export function buildSelectionInsightTopicPrompt({
     "### RESEARCH_IDENTIFIER",
     researchId,
     "",
+    researchQuery?.trim() ? "### RESEARCH_QUERY\n" + researchQuery.trim() : "",
+    selection.section?.heading
+      ? "### SECTION_HEADING\n" + selection.section.heading
+      : "",
+    selection.section?.summary
+      ? "### SECTION_SUMMARY\n" + selection.section.summary
+      : "",
+    selection.origin?.nodeId
+      ? "### SECTION_ANCHOR_ID\n" + selection.origin.nodeId
+      : "",
+    selection.origin?.resultId
+      ? "### RESEARCH_RESULT_ID\n" + selection.origin.resultId
+      : "",
     "### SELECTED_TEXT",
     selection.text,
     "",
@@ -72,6 +88,7 @@ export function buildSelectionInsightExpansionPrompt({
   researchId,
   selection,
   topics,
+  researchQuery,
 }: BuildSelectionInsightExpansionPromptInput): string {
   const schema = [
     '  "summary": string,',
@@ -95,6 +112,19 @@ export function buildSelectionInsightExpansionPrompt({
     "### RESEARCH_IDENTIFIER",
     researchId,
     "",
+    researchQuery?.trim() ? "### RESEARCH_QUERY\n" + researchQuery.trim() : "",
+    selection.section?.heading
+      ? "### SECTION_HEADING\n" + selection.section.heading
+      : "",
+    selection.section?.summary
+      ? "### SECTION_SUMMARY\n" + selection.section.summary
+      : "",
+    selection.origin?.nodeId
+      ? "### SECTION_ANCHOR_ID\n" + selection.origin.nodeId
+      : "",
+    selection.origin?.resultId
+      ? "### RESEARCH_RESULT_ID\n" + selection.origin.resultId
+      : "",
     "### SELECTED_TEXT",
     selection.text,
     "",

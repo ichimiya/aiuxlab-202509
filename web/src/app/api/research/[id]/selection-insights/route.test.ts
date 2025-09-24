@@ -46,7 +46,16 @@ describe("POST /api/research/:id/selection-insights", () => {
           selection: {
             text: "AI リスク",
             context: "AI リスクに関する段落",
+            origin: {
+              nodeId: "section-risk",
+              resultId: "result-001",
+            },
+            section: {
+              heading: "リスク概要",
+              summary: "リスク概要: 運用・倫理・法規制の３分類",
+            },
           },
+          researchQuery: " 最新AI リスク 調査 ",
         }),
       },
     );
@@ -59,9 +68,18 @@ describe("POST /api/research/:id/selection-insights", () => {
     expect(response.status).toBe(200);
     expect(execute).toHaveBeenCalledWith({
       researchId: "res-1",
+      researchQuery: " 最新AI リスク 調査 ",
       selection: {
         text: "AI リスク",
         context: "AI リスクに関する段落",
+        origin: {
+          nodeId: "section-risk",
+          resultId: "result-001",
+        },
+        section: {
+          heading: "リスク概要",
+          summary: "リスク概要: 運用・倫理・法規制の３分類",
+        },
       },
     });
     expect(data.summary).toBe("ガバナンス観点の追加知見");

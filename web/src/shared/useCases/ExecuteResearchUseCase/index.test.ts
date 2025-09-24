@@ -84,33 +84,39 @@ describe("ExecuteResearchUseCase (Application Layer)", () => {
 
       expect(mockRepository.search).toHaveBeenCalledWith(context);
       expect(mockContentPort.process).toHaveBeenCalled();
-      expect(result).toMatchObject({
-        id: "test-research-id",
-        query: "テストクエリ",
-        status: "completed",
-        results: expect.arrayContaining([
-          expect.objectContaining({
-            content: "<p><strong>テスト結果のコンテンツ</strong></p>",
-            source: "perplexity",
-            processedCitations: expect.arrayContaining([
-              expect.objectContaining({
-                id: "ref1",
-                number: 1,
-                url: "https://example.com",
-                title: "テスト記事",
-                domain: "example.com",
-              }),
-            ]),
-          }),
-        ]),
-        searchResults: expect.arrayContaining([
+      expect(result.id).toBe("test-research-id");
+      expect(result.query).toBe("テストクエリ");
+      expect(result.status).toBe("completed");
+      expect(result.citations).toEqual(["https://example.com"]);
+      expect(result.searchResults).toEqual(
+        expect.arrayContaining([
           expect.objectContaining({
             title: "テスト記事",
             url: "https://example.com",
           }),
         ]),
-        citations: ["https://example.com"],
+      );
+
+      expect(result.results).toHaveLength(1);
+      const [firstResult] = result.results ?? [];
+      expect(firstResult).toMatchObject({
+        content: "テスト結果のコンテンツ",
+        source: "perplexity",
       });
+      expect(firstResult.htmlContent).toMatch(
+        /<strong[^>]*>テスト結果のコンテンツ<\/strong>/,
+      );
+      expect(firstResult.processedCitations).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            id: "ref1",
+            number: 1,
+            url: "https://example.com",
+            title: "テスト記事",
+            domain: "example.com",
+          }),
+        ]),
+      );
     });
 
     it("API エラーをApplicationErrorでラップ", async () => {

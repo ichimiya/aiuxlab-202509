@@ -5,6 +5,28 @@ import { renderHook, act } from "@testing-library/react";
 import { useSelectionInsights } from "./useSelectionInsights";
 import { useResearchStore } from "@/shared/stores/researchStore";
 
+declare global {
+  var __setMockResearchSnapshots: (snapshots: Record<string, unknown>) => void;
+}
+
+vi.mock("@/shared/stores/researchDetailStore", () => {
+  const storeState = {
+    snapshots: {} as Record<string, unknown>,
+    connections: {},
+  };
+
+  (globalThis as any).__setMockResearchSnapshots = (
+    snapshots: Record<string, unknown>,
+  ) => {
+    storeState.snapshots = snapshots;
+  };
+
+  return {
+    useResearchDetailStore: (selector: (state: typeof storeState) => any) =>
+      selector(storeState),
+  };
+});
+
 const fetchMock = vi.fn();
 
 describe("useSelectionInsights", () => {
@@ -13,6 +35,7 @@ describe("useSelectionInsights", () => {
     vi.spyOn(global, "fetch").mockImplementation(fetchMock as any);
     useResearchStore.getState().reset();
     fetchMock.mockReset();
+    globalThis.__setMockResearchSnapshots?.({});
   });
 
   afterEach(() => {
@@ -21,9 +44,24 @@ describe("useSelectionInsights", () => {
   });
 
   it("選択テキストを1秒後に送信し、結果をステートに保持する", async () => {
+    globalThis.__setMockResearchSnapshots?.({
+      "research-1": {
+        query: "AI エージェント市場の主要プレイヤー",
+      },
+    });
+
     const selection = {
       text: "AIリスクの分類",
       context: "AIリスクの分類と優先度",
+      origin: {
+        nodeId: "paragraph-growth",
+        resultId: "result-001",
+      },
+      section: {
+        heading: "市場規模と成長率",
+        summary:
+          "市場規模と成長率: 2024年以降、生成AIスタートアップ投資が再加速",
+      },
     };
 
     fetchMock.mockResolvedValueOnce(
@@ -69,6 +107,12 @@ describe("useSelectionInsights", () => {
         method: "POST",
       }),
     );
+
+    const [, requestInit] = fetchMock.mock.calls[0];
+    const body = JSON.parse(requestInit.body as string);
+    expect(body.selection.origin.nodeId).toBe("paragraph-growth");
+    expect(body.selection.section.heading).toBe("市場規模と成長率");
+    expect(body.researchQuery).toBe("AI エージェント市場の主要プレイヤー");
     expect(result.current.status).toBe("loaded");
     expect(result.current.data?.summary).toBe(
       "AIリスクは運用・倫理・法規制の3分類",

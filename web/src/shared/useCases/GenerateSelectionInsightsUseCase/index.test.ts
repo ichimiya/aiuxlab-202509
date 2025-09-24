@@ -68,10 +68,16 @@ describe("GenerateSelectionInsightsUseCase", () => {
       selection,
     });
 
-    expect(mockPort.generate).toHaveBeenCalledWith({
-      researchId: "research-123",
-      selection,
-    });
+    expect(mockPort.generate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        researchId: "research-123",
+        researchQuery: undefined,
+        selection: expect.objectContaining({
+          text: selection.text,
+          context: selection.context,
+        }),
+      }),
+    );
     expect(result).toEqual(expected);
   });
 

@@ -26,7 +26,7 @@ describe("ResearchDomainService - Port注入（Red）", () => {
       [{ title: "ex", url: "https://example.com" }],
     );
 
-    expect(result.htmlContent).toContain("<section>");
+    expect(result.htmlContent).toMatch(/<section[^>]*>/);
     expect(result.processedCitations[0]?.id).toBe("ref1");
   });
 });

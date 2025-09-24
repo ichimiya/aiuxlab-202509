@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useResearchStore } from "@/shared/stores/researchStore";
 import type { SelectionInsightResult } from "@/shared/useCases/ports/selectionInsights";
+import { useResearchDetailStore } from "@/shared/stores/researchDetailStore";
 
 export type SelectionInsightsStatus = "idle" | "loading" | "loaded" | "error";
 
@@ -36,6 +37,9 @@ export function useSelectionInsights(
   researchId: string,
 ): UseSelectionInsightsState {
   const selection = useResearchStore((state) => state.textSelection);
+  const researchQuery = useResearchDetailStore(
+    (state) => state.snapshots[researchId]?.query,
+  );
   const [state, setState] = useState<UseSelectionInsightsState>(() => ({
     ...DEFAULT_STATE,
   }));
@@ -93,6 +97,9 @@ export function useSelectionInsights(
       text: selection.text.trim(),
       context: selection.context?.trim() ?? null,
       timestamp: selection.metadata?.timestamp ?? null,
+      nodeId: selection.origin?.nodeId ?? null,
+      sectionHeading: selection.section?.heading ?? null,
+      sectionSummary: selection.section?.summary ?? null,
     });
 
     if (signature && signature === lastSignatureRef.current) {
@@ -127,7 +134,10 @@ export function useSelectionInsights(
             headers: {
               "Content-Type": "application/json",
             },
-            body: JSON.stringify({ selection }),
+            body: JSON.stringify({
+              selection,
+              researchQuery: researchQuery?.trim() ?? undefined,
+            }),
             signal: controller.signal,
           },
         );

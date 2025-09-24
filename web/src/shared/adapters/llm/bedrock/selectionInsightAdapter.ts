@@ -25,6 +25,7 @@ export class BedrockSelectionInsightAdapter
     const topicPrompt = buildSelectionInsightTopicPrompt({
       researchId: request.researchId,
       selection: request.selection,
+      researchQuery: request.researchQuery,
       requestedTopics: MAX_TOPICS,
     });
 
@@ -36,6 +37,7 @@ export class BedrockSelectionInsightAdapter
     const expansionPrompt = buildSelectionInsightExpansionPrompt({
       researchId: request.researchId,
       selection: request.selection,
+      researchQuery: request.researchQuery,
       topics: selectedTopics,
     });
 

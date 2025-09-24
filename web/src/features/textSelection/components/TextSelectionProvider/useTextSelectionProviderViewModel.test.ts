@@ -50,10 +50,38 @@ describe("useTextSelectionProviderViewModel", () => {
     document.body.innerHTML = "";
   });
 
-  it("許可された領域内の選択を検知してストアへ反映する", () => {
-    const { textNode } = setupAllowedScope();
-    const selectionText = "AI規制";
-    applySelection(textNode, 0, textNode, selectionText.length);
+  it("許可された領域内の選択を検知し、構造情報付きでストアへ反映する", () => {
+    const scope = document.createElement("div");
+    scope.setAttribute("data-selection-scope", "research-results");
+
+    const article = document.createElement("article");
+    article.setAttribute("data-result-id", "result-001");
+
+    const section = document.createElement("section");
+    section.id = "section-overview";
+
+    const heading = document.createElement("h2");
+    heading.textContent = "市場規模と成長率";
+    section.appendChild(heading);
+
+    const paragraph = document.createElement("p");
+    paragraph.id = "paragraph-growth";
+    paragraph.textContent =
+      "2024年以降、生成AIスタートアップへの投資額が再加速している。";
+    section.appendChild(paragraph);
+
+    article.appendChild(section);
+    scope.appendChild(article);
+    document.body.appendChild(scope);
+
+    const selectionText =
+      "2024年以降、生成AIスタートアップへの投資額が再加速している";
+    applySelection(
+      paragraph.firstChild as Text,
+      0,
+      paragraph.firstChild as Text,
+      selectionText.length,
+    );
 
     const { result } = renderHook(() => useTextSelectionProviderViewModel());
 
@@ -62,7 +90,12 @@ describe("useTextSelectionProviderViewModel", () => {
       vi.advanceTimersByTime(150);
     });
 
-    expect(useResearchStore.getState().textSelection?.text).toBe(selectionText);
+    const stored = useResearchStore.getState().textSelection;
+    expect(stored?.text).toBe(selectionText);
+    expect(stored?.origin?.resultId).toBe("result-001");
+    expect(stored?.origin?.nodeId).toBe("paragraph-growth");
+    expect(stored?.section?.heading).toBe("市場規模と成長率");
+    expect(stored?.section?.summary).toContain("市場規模と成長率");
   });
 
   it("許可領域外の選択は無視する", () => {

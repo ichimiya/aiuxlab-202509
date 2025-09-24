@@ -58,10 +58,22 @@ export interface TextSelectionMetadata {
   timestamp: string;
 }
 
+export interface TextSelectionOrigin {
+  nodeId?: string;
+  resultId?: string;
+}
+
+export interface TextSelectionSectionContext {
+  heading?: string;
+  summary?: string;
+}
+
 export interface TextSelection {
   text: string;
   context?: string;
   metadata?: TextSelectionMetadata;
+  origin?: TextSelectionOrigin;
+  section?: TextSelectionSectionContext;
 }
 
 export interface VoiceCommandHistoryEntry {

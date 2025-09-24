@@ -114,7 +114,7 @@ export function ResearchDetailView({ id }: ResearchDetailViewProps) {
   const lastErrorMessage = snapshot?.lastError?.message ?? null;
 
   return (
-    <div className="grid grid-cols-1 gap-5 dark:bg-gray-800 rounded-lg shadow-lg md:grid-cols-[20%_1px_1fr_20%] h-full min-h-0">
+    <div className="grid grid-cols-1 gap-5 dark:bg-gray-800 rounded-lg shadow-lg md:grid-cols-[20%_1px_1fr_20%] w-full h-full min-h-0">
       <div className="space-y-4 overflow-auto scrollbar-hide min-h-0">
         <MetadataSection metadata={metadata} />
 
@@ -459,7 +459,7 @@ function SelectionInsightsSection({
 
           {data.generatedAt && (
             <p className="text-[11px] text-slate-500">
-              生成日時: {formatDate(data.generatedAt)}（LLM補足情報）
+              生成日時: {formatDate(data.generatedAt)}
             </p>
           )}
 
@@ -501,22 +501,9 @@ function SelectionInsightCard({
   return (
     <article className="rounded-lg border border-white/10 bg-slate-900/30 p-3 space-y-2">
       <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-[11px] uppercase tracking-[0.16em] text-blue-300/80 font-michroma">
-            {label}
-          </p>
-          <h4 className="text-sm font-semibold text-blue-100 mt-1">
-            {insight.title}
-          </h4>
-        </div>
-        {domain && (
-          <span
-            className="text-[11px] uppercase text-blue-300/70 font-michroma"
-            title={domain}
-          >
-            {domain}
-          </span>
-        )}
+        <h4 className="text-sm font-semibold text-blue-100 mt-1">
+          {insight.title}
+        </h4>
       </div>
 
       <p className="text-xs leading-relaxed text-blue-200/90 whitespace-pre-wrap">
@@ -536,31 +523,6 @@ function SelectionInsightCard({
                   <span className="block text-[11px] text-slate-400">
                     {point.detail}
                   </span>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {insight.recommendedSources.length > 0 && (
-        <div className="space-y-1">
-          <h5 className="text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400">
-            推奨ソース
-          </h5>
-          <ul className="space-y-2 text-[11px] text-blue-200/80">
-            {insight.recommendedSources.map((source, idx) => (
-              <li key={`${insight.id}-src-${idx}`} className="space-y-1">
-                <a
-                  href={source.url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-blue-300 underline"
-                >
-                  {source.title}
-                </a>
-                {source.reason && (
-                  <p className="text-slate-400">{source.reason}</p>
                 )}
               </li>
             ))}

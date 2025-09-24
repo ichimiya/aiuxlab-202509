@@ -18,6 +18,7 @@ export type {
 export interface SelectionInsightRequest {
   researchId: string;
   selection: TextSelection;
+  researchQuery?: string;
 }
 
 export interface SelectionInsightPort {

@@ -13,12 +13,29 @@ const SelectionMetadataSchema = z.object({
   timestamp: z.string(),
 });
 
+const SelectionOriginSchema = z
+  .object({
+    nodeId: z.string().min(1).optional(),
+    resultId: z.string().min(1).optional(),
+  })
+  .optional();
+
+const SelectionSectionSchema = z
+  .object({
+    heading: z.string().min(1).optional(),
+    summary: z.string().min(1).optional(),
+  })
+  .optional();
+
 const BodySchema = z.object({
   selection: z.object({
     text: z.string().min(1, "selection.text is required"),
     context: z.string().optional(),
     metadata: SelectionMetadataSchema.optional(),
+    origin: SelectionOriginSchema,
+    section: SelectionSectionSchema,
   }),
+  researchQuery: z.string().min(1).optional(),
 });
 
 export async function POST(
@@ -58,6 +75,7 @@ export async function POST(
     const result = await useCase.execute({
       researchId: id,
       selection: parsed.data.selection,
+      researchQuery: parsed.data.researchQuery,
     });
     return ok(result, 200);
   } catch (error) {

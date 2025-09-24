@@ -6,12 +6,17 @@ import { createSelectionInsightAdapter } from "@/shared/infrastructure/external/
 export interface GenerateSelectionInsightsInput {
   researchId: string;
   selection: TextSelection;
+  researchQuery?: string;
 }
 
 export class GenerateSelectionInsightsUseCase {
   constructor(private readonly port: SelectionInsightPort) {}
 
-  async execute({ researchId, selection }: GenerateSelectionInsightsInput) {
+  async execute({
+    researchId,
+    selection,
+    researchQuery,
+  }: GenerateSelectionInsightsInput) {
     if (!researchId?.trim()) {
       throw new ApplicationError("researchId is required", {
         code: "INVALID_INPUT",
@@ -43,6 +48,7 @@ export class GenerateSelectionInsightsUseCase {
           ? selection.context.trim()
           : undefined,
       },
+      researchQuery: researchQuery?.trim() ? researchQuery.trim() : undefined,
     } as const;
 
     try {
