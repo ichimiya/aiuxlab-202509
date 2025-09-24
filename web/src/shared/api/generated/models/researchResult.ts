@@ -13,6 +13,8 @@ export interface ResearchResult {
   id: string;
   /** HTML化されたリサーチ結果内容 */
   content: string;
+  /** サニタイズ済みHTMLコンテンツ */
+  htmlContent: string;
   /** 情報源 */
   source: string;
   /** 関連度スコア */

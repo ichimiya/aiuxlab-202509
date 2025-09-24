@@ -1,5 +1,6 @@
 import React from "react";
 import type { OptimizationCandidate } from "@/shared/api/generated/models";
+import { GlassBox } from "@/shared/ui/GlassBox";
 
 const CARD_ROW_TRACK_COUNT = 5;
 
@@ -20,9 +21,6 @@ export function OptimizationSuggestions({
   onSelect,
   onStartResearch,
 }: Props) {
-  const glassBackground =
-    "color-mix(in srgb, var(--background) 20%, transparent)";
-
   return (
     <div className="space-y-4">
       <div
@@ -34,7 +32,8 @@ export function OptimizationSuggestions({
         {candidates.map((candidate, index) => {
           const isSelected = candidate.id === selectedCandidateId;
           return (
-            <button
+            <GlassBox
+              as="button"
               key={candidate.id}
               type="button"
               onMouseEnter={(event) => {
@@ -48,13 +47,12 @@ export function OptimizationSuggestions({
               onClick={() => onStartResearch?.(candidate)}
               aria-pressed={isSelected}
               data-layout="subgrid"
-              className={`grid grid-rows-[subgrid] content-start gap-2 text-left p-4 rounded-xl border transition-colors focus:outline-none focus:border-blue-300/60 backdrop-blur-lg ${
+              className={`grid grid-rows-[subgrid] content-start gap-2 text-left focus:outline-none focus:border-blue-300/60 ${
                 isSelected
                   ? "border-blue-300/60 shadow-[0_0_22px_rgba(147,197,253,0.26)]"
                   : "border-white/10 hover:border-blue-300/60"
               }`}
               style={{
-                backgroundColor: glassBackground,
                 gridRow: `span ${CARD_ROW_TRACK_COUNT}`,
               }}
             >
@@ -101,7 +99,7 @@ export function OptimizationSuggestions({
                 candidate.suggestedFollowups.length === 0) && (
                 <div className="row-start-5 row-span-1" aria-hidden="true" />
               )}
-            </button>
+            </GlassBox>
           );
         })}
       </div>

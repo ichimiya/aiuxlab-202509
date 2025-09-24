@@ -26,7 +26,7 @@ export interface ResearchResultDisplayViewModel {
   };
 
   // Helper Functions
-  formatResultContent: (content: string) => string;
+  formatResultContent: (result: ResearchResult) => string;
   getRelevancePercentage: (score?: number) => string;
 }
 
@@ -86,9 +86,18 @@ export function useResearchResultDisplayViewModel({
   }, [research?.status]);
 
   // Helper functions
-  const formatResultContent = (content: string): string => {
-    // HTMLコンテンツをそのまま返却（BFF層で処理済み）
-    return content;
+  const formatResultContent = (result: ResearchResult): string => {
+    const html = result.htmlContent?.trim();
+    if (html) {
+      return html;
+    }
+
+    const text = result.content?.trim();
+    if (!text) {
+      return "";
+    }
+
+    return text;
   };
 
   const getRelevancePercentage = (score?: number): string => {

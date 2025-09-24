@@ -19,12 +19,12 @@ const OUTER_BASE_CLASSES =
   "relative inline-flex w-fit max-w-full max-h-[calc(100vh-40px)] rounded-[40px] p-5 bg-transparent border border-white/20 backdrop-blur";
 
 const INNER_BASE_CLASSES =
-  "relative z-0 grid w-full h-full max-w-full grid-rows-[auto_1fr] justify-items-center gap-5 rounded-[36px] bg-[#121224cc] p-5";
+  "relative z-0 grid w-full h-full max-w-full min-h-0 grid-rows-[auto_1fr] justify-items-center gap-5 rounded-[36px] bg-[#121224cc] p-5";
 
 const HEADER_CLASSES = "flex w-full max-w-full justify-center";
 
 const MAIN_CLASSES =
-  "flex w-full h-full max-w-full flex-col items-center justify-start";
+  "flex w-full h-full max-w-full min-h-0 flex-col items-center justify-start overflow-y-auto";
 
 interface AppWindowProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;

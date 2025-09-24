@@ -108,7 +108,7 @@ export function ResearchResultDisplay({
               <div
                 className="prose prose-sm max-w-none dark:prose-invert"
                 dangerouslySetInnerHTML={{
-                  __html: viewModel.formatResultContent(result.content),
+                  __html: viewModel.formatResultContent(result),
                 }}
               />
 

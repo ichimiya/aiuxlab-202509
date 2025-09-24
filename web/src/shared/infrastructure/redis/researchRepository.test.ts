@@ -68,6 +68,7 @@ describe("researchRepository", () => {
         {
           id: "result-1",
           content: "answer",
+          htmlContent: "<p>answer</p>",
           source: "perplexity",
           relevanceScore: 1,
         },
